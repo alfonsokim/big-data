@@ -58,3 +58,36 @@ create table gdelt (
     DATEADDED integer, 
     SOURCEURL varchar
 );
+
+create table gdelt_reduced(
+    GLOBALEVENTID integer, 
+    SQLDATE integer, 
+    MonthYear integer, 
+    Year integer, 
+    FractionDate double precision, 
+    Actor1Code varchar, 
+    Actor1Name varchar, 
+    Actor1CountryCode varchar, 
+
+    Actor2Code varchar, 
+    Actor2Name varchar, 
+    Actor2CountryCode varchar, 
+
+    EventCode varchar, 
+
+    GoldsteinScale double precision, 
+
+    AvgTone double precision, 
+
+    Actor1Geo_FullName varchar, 
+    Actor1Geo_CountryCode varchar, 
+
+    Actor1Geo_Lat double precision, 
+    Actor1Geo_Long double precision, 
+
+    Actor2Geo_FullName varchar, 
+    Actor2Geo_CountryCode varchar, 
+
+    Actor2Geo_Lat varchar, 
+    Actor2Geo_Long double precision
+);
