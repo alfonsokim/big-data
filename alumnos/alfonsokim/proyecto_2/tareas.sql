@@ -86,3 +86,13 @@ select state_str, anio, avg(total) from conteos group by 1, 2 order by 1, 2;
 === Encontrar olas
 select date_time::date as dia, count(*) 
 from sightings group by 1 order by 1;
+
+=== Similaridad
+select similarity(s1.report, s2.report) as sim, 
+       s1.report as r1, s2.report as r2 
+into similar_reports
+from sightings s1 
+     join sightings s2 on s1.report <> s2.report 
+                      and s1.report % s2.report 
+where similarity(s1.report, s2.report) >= 0.5
+order by sim desc;
