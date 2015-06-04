@@ -12,7 +12,7 @@ Para encontrar el número total de observaciones
 ```
 wc -l ufo_base.txt
 ```
-Lo cual da un total de **xx**
+Lo cual da un total de **97615**
 
 ###¿Cuál es el top 5 de estados?
 
@@ -71,7 +71,7 @@ library(Hmisc)
 library(tidyr)
 library(dplyr)
 library(ggplot2)
-dat <- read.delim("F:/dat_fech.txt")
+dat <- read.delim("dat_fech.txt")
 datos <- separate(dat, col=City, into=c("month","day","year","time"),
            regex=" ",remove=F,extra="drop")%>%
   mutate(date= paste(month, day, year, sep ='/'),
@@ -161,13 +161,22 @@ df6
 Primero se obtiene un archivo en el cual venga la frecuencia de las fechas
 
 ```
-cat dat.txt | cut -f2 | sed 's/"//g' | sed 's/..:..//g' | sort | uniq -c > dia_sem.txt
+cat dat.txt | cut -f2 | sed 's/"//g' | sed 's/..:..//g' > dia_sem.txt
 ```
 
 ```{r, echo=FALSE, warning=FALSE, message=FALSE}
-dia_sem <- read.delim("F:/dia_sem.txt")
-dia_sem <- weekdays(dia_sem)
-unique(dias)
-dias <- as.factor(dias)
-summary(dias)
+library (openair)
+dia_sem <- read.csv("dia_sem.txt", sep="")
+
+dia_sem <- separate(dia_sem, col=City, into=c("month","day","year"),
+           regex=" ",remove=F,extra="drop")%>%
+  mutate(date= paste(month, day, year, sep ='/'),
+  date = as.Date(date, format='%m/%d/%y')) %>%
+    select(date)
+
+dias <- dia_sem$date
+
+dia_sem <- cutData(dia_sem, type="weekday")
+
+summary (dia_sem$weekday)
 ```
