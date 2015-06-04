@@ -1,0 +1,558 @@
+---
+title: "Proyecto 2"
+author: "Andrés Villaseñor"
+date: "1 de junio de 2015"
+output: html_document
+---
+
+####Introducción
+
+El objetivo del _proyecto 2_ es responder a las preguntas planteadas en la lectura 3 del repositorio de big data encontrado [aqui](https://github.com/andreslechuga/big-data/blob/master/lecture_3/lecture_3.md), por lo que se realiza la carga de las bases de datos que se presentarán a continuación y su posterior analísis.
+
+
+####Base de datos
+
+Para el segundo proyecto se utilizan 2 bases de datos. 
+* La primera es de avistamientos de [UFOS](http://www.nuforc.org) la cual contiene una descripción de los avisamientos ocurridos y documentados desde antes de 1900´s hasta la fecha. 
+* La segunda es la base de datos de noticias[GDELT](http://gdeltproject.org) el cual es un proyecto que contiene más de 300 millones de eventos geolocalizados desde 1979 a la fecha. 
+
+####Análisis UFO
+
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+library(ggplot2)
+library(plyr)
+library(dplyr)
+library(tidyr)
+library(lubridate)
+library(scales)
+library(maptools)
+library(rgdal)
+library(ggmap)
+library(tm)
+library(Rstem)
+library(RCurl) 
+library(bitops) 
+library(digest) 
+library(rjson)
+library(cluster)
+library(irlba)
+library(Matrix)
+library(knitr)
+library(bigrquery)
+options(digits = 16)
+ufos <- readRDS("/Users/lechuga/Desktop/Andres/ESCUELA/ITAM/CLASES/2do semestre/Metodos a gran escala/Proyecto 2/datos/ufos_1.rds")
+ufos <- ufos[complete.cases(ufos),]
+ufos <- ufos %>%
+  mutate(date = as.Date(ufos$Date...Time,format ='%m/%d/%y'),
+         city = City,
+         state = State,
+         shape = Shape) %>%
+  dplyr::select(date,city,state,shape)
+
+#Multipolot
+multiplot <- function(..., plotlist=NULL, file, cols=1, layout=NULL) {
+  library(grid)
+
+  # Make a list from the ... arguments and plotlist
+  plots <- c(list(...), plotlist)
+
+  numPlots = length(plots)
+
+  # If layout is NULL, then use 'cols' to determine layout
+  if (is.null(layout)) {
+    # Make the panel
+    # ncol: Number of columns of plots
+    # nrow: Number of rows needed, calculated from # of cols
+    layout <- matrix(seq(1, cols * ceiling(numPlots/cols)),
+                    ncol = cols, nrow = ceiling(numPlots/cols))
+  }
+
+ if (numPlots==1) {
+    print(plots[[1]])
+
+  } else {
+    # Set up the page
+    grid.newpage()
+    pushViewport(viewport(layout = grid.layout(nrow(layout), ncol(layout))))
+
+    # Make each plot, in the correct location
+    for (i in 1:numPlots) {
+      # Get the i,j matrix positions of the regions that contain this subplot
+      matchidx <- as.data.frame(which(layout == i, arr.ind = TRUE))
+
+      print(plots[[i]], vp = viewport(layout.pos.row = matchidx$row,
+                                      layout.pos.col = matchidx$col))
+    }
+  }
+}
+
+```
+
+__1.1 ¿Primer avistamiento en cada estado?__
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+first_views <- ufos %>%
+  filter(state != "") %>% 
+  arrange(date) %>%
+  group_by(state)
+first_views <-arrange(aggregate(date ~ state, data = first_views, `[`, 1),date)
+
+#primeros 10
+head(first_views, 10)
+```
+
+__1.2 ¿Primer avistamiento de cada forma?__
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+first_shapes <- ufos %>%
+  filter(shape != "") %>% 
+  arrange(date) %>%
+  group_by(shape)
+first_shapes <-arrange(aggregate(date ~ shape, data = first_shapes, `[`, 1),date)
+
+#primeros 10
+head(first_shapes, 10)
+```
+
+__2. ¿Promedio de avistamientos, por mes, por año? ¿Por estado?__
+
+promedio por año 
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+# por año
+prom_a <- ufos %>%
+  filter(year(date) <= 2015) %>%
+  group_by(year(date)) %>%
+  dplyr::summarise(count = n()) %>% 
+  mutate(prom_anio = count/47) 
+
+head(prom_a,10)
+
+```
+
+promedio por mes
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+# por mes
+prom_m <- ufos %>%
+  filter(year(date) <= 2015) %>%
+  group_by(year(date)) %>%
+  group_by(month(date)) %>%
+  dplyr::summarise(count = n()) %>% 
+  mutate(prom_anio = count/12) 
+
+head(prom_m, 10)
+
+ggplot(prom_m , aes(x = as.factor(seq(1:12)), y = prom_anio)) + geom_bar(stat = "identity", fill = I("salmon")) + 
+  xlab("meses") +
+  ylab("promedio") +
+  ggtitle("Promedio de avistamientos por mes")
+
+```
+
+promedio por estado
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+# por estado
+prom_s <- ufos %>%
+  filter(state != "") %>% 
+  group_by(state) %>% 
+  dplyr::summarise(count = n()) %>% 
+  mutate(prom_estado = count/length(unique(state))) %>%
+  arrange(desc(prom_estado))
+
+
+head(prom_s,10)
+
+ggplot(prom_s , aes(x = reorder(state, -prom_estado), y = prom_estado)) + geom_bar(stat = "identity", fill = I("salmon")) + xlab("estado") + ylab("promedio") + ggtitle("Promedio de avistamientos por estado") + theme(axis.text.x = element_text(angle = 90, hjust = 1))
+
+```
+
+
+__3. ¿Cuál estado tiene mayor varianza?__
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+# por estado
+prom_var_s <- ufos %>%
+  filter(state != "") %>% 
+  group_by(state) %>% 
+  dplyr::summarise(count = n()) %>% 
+  mutate(prom_estado = count/length(unique(state))) %>%
+  arrange(desc(prom_estado))
+
+#promedio general
+porm_gral <- sum(prom_var_s$count)/length(unique(prom_var_s$state))
+
+prom_var_s1 <- prom_var_s %>%
+  mutate(std_d = (count-porm_gral)^2) %>%
+  mutate(varianza = std_d / length(unique(state))) %>%
+  arrange(desc(varianza))
+  
+head(prom_var_s1,10)
+
+```
+
+__4. ¿Existen olas temporales?__
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+
+date.reports <-ufos %>%
+  #filtramos para eliminar fechas futuras.
+  filter(date > as.Date("2009-01-01") , date < as.Date("2015-05-01")) %>%
+  group_by(date) %>%
+  dplyr::summarise(reports = n()) %>%
+  dplyr::select(date,reports) 
+
+
+ggplot(date.reports , aes(x = date, y = reports)) + geom_line(stat = "identity") + xlab("fecha") + ylab("numero de avistamientos") + ggtitle("Serie de tiempo de avistamientos") + theme(axis.text.x = element_text(angle = 0, hjust = 1))
+
+
+```
+
+Al parecer se repite un patron en el que los picos son más notables es decir al parecer en verano la gente ve mas ovnis, ya que parece que la serie es estacionaria.
+
+__5. ¿Narrativas parecidas?__
+
+```{r, echo=FALSE, eval=FALSE, message=FALSE, warning=FALSE}
+
+ufo_df <- readRDS("/Users/lechuga/Desktop/Andres/ESCUELA/ITAM/CLASES/2do semestre/Metodos a gran escala/Proyecto 2/datos/ufos.rds")
+
+
+corpus <- Corpus(VectorSource(ufo_df$report), readerControl = list(language ='english'))
+corpus <- tm_map(corpus, stripWhitespace)
+corpus <- tm_map(corpus, content_transformer(tolower))
+corpus <- tm_map(corpus,  function(x){
+  gsub('[-«»\\\',;:".!¡¿?\\(\\)]','',x)
+}) 
+corpus <- tm_map(corpus, removeWords, stopwords("english"))
+corpus <- tm_map(corpus , removePunctuation)
+corpus <- tm_map(corpus, removeNumbers)
+#corpus <- tm_map(corpus, function(x){
+#  z <- strsplit(x, " +")[[1]]
+#  z.stem <- wordStem(z, language="english")
+#  PlainTextDocument(paste(z, collapse=" "))
+#})
+corpus2 <- tm_map(corpus, stemDocument, language = "english",lazy=TRUE)
+corpus2 <- tm_map(corpus, PlainTextDocument)
+
+dtm<-TermDocumentMatrix(corpus2)
+
+X <- sparseMatrix(i = dtm$i, j = dtm$j, x = dtm$v)
+
+d.2 <- irlba(X, nu = 6, nv = 6)
+P <- d.2$u %*% diag(sqrt(d.2$d), 6) %>% data.frame
+Q <- d.2$v %*% diag(sqrt(d.2$d), 6) %>% data.frame
+P$termino <- dtm$dimnames$Terms
+arrange(P, X1) %>% head(20)
+P.2 <- P %>% select(X3, X6, termino) %>% filter(X3^2 + X6^2 > 3)
+ggplot(P.2, aes(x=X3, y=X6, label=termino)) +  geom_text(size=4)
+d.3 <- irlba(X, nu = 30, nv = 30)
+save(dtm, d.3, P.2 ,file = '/Users/lechuga/Desktop/Andres/ESCUELA/ITAM/CLASES/2do semestre/Metodos a gran escala/Proyecto 2/datos/dtm.Rdata')
+```
+
+Realizamos minería de texto para crear un corpus, limpiarlo y a traves de una clusterización podemos fijarnos si hay narrativas similares. Considero que esto es mejor que buscar similitud de texto ya que sería más dificíl encontrar similitudes por que es una técnica un poco más estricta.
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+
+load('/Users/lechuga/Desktop/Andres/ESCUELA/ITAM/CLASES/2do semestre/Metodos a gran escala/Proyecto 2/datos/dtm.Rdata')
+set.seed(12900)
+grupos <- kmeans(d.3$v, centers = 20, iter.max = 50)
+cl <- grupos$cluster
+table(cl)
+ggplot(P.2, aes(x=X3, y=X6, label=termino)) +  geom_text(size=4)
+#head(ufo_df$report[cl == 6])
+
+```
+
+__6. ¿Cómo está relacionado con la geografía?__
+
+```{r,echo=FALSE, message=FALSE, warning=FALSE}
+us_states_loc <- read.csv("~/Desktop/Andres/ESCUELA/ITAM/CLASES/2do semestre/Metodos a gran escala/Proyecto 2/datos/us_states_loc.csv")
+
+loc_us <- us_states_loc %>%
+  dplyr::select(abbrev, latitude, longitude)
+
+colnames(loc_us) <- c('state', 'latitude', 'longitude')
+
+ufos_2 <- ufos %>%
+  dplyr::filter(state != "")
+
+df_ufos <- join(ufos_2, loc_us, by = 'state')
+
+df_ufos <- df_ufos %>%
+  dplyr::filter(latitude != "NA") %>%
+  group_by(state) %>% 
+  dplyr::summarise(count = n())
+  
+df_ufoss <- join(df_ufos, loc_us, by = 'state')
+  
+
+map <- get_map(location = "United States", zoom = 4, maptype = "roadmap")
+map_1 <- ggmap(map) + 
+  geom_point(data = df_ufoss, aes(x=longitude, y=latitude, colour = state, size = count)) + theme(legend.position="none")
+```
+
+Al parecer no hay relación geográfica mayor, sin embargo es notable como en califormia hay varios avistamientos, también en la región noreste hay bastantes avistamientos.
+
+
+__7. ¿Con características sociales?__
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+#state.abb[grep("New York", state.name)]
+censo <- read.csv("~/Dropbox/proyecto_final_doc/data/censo.csv")
+censo$state <- lapply(censo$NAME, function(x){state.abb[grep(as.character(x), state.name)]})
+
+censo_df <- join(df_ufoss, censo, by = 'state')
+
+map <- get_map(location = "United States", zoom = 4, maptype = "roadmap")
+map_2 <- ggmap(map) + 
+  geom_point(data = censo_df, aes(x=longitude, y=latitude, colour = state, size = POPESTIMATE2013))+theme(legend.position="none") 
+
+multiplot(map_1, map_2, cols = 2)
+```
+
+Utilizamos un censo de población, la imágen de la izquierda en la gráfica muestra el número de avistamientos y la imagen de la derecha mustra el tamaño de población estimado por estado. Aparentemente existe una relación entre estas dos variables ya que las gráficas son casi idénticas.
+
+__8. Desarrolla un modelo predictivo__
+
+```{r,echo=FALSE, message=FALSE, warning=FALSE}
+library(caret)
+censo_df1 <- join(df_ufos, loc_us, by = 'state')
+censo_df1 <- join(censo_df1, censo, by = 'state')
+dataufo <- censo_df1 %>%
+  dplyr::select(count,	latitude,	longitude,	SUMLEV,	REGION,	DIVISION,POPESTIMATE2013,	POPEST18PLUS2013,	PCNT_POPEST18PLUS)
+
+trainIndex <- createDataPartition(dataufo$count, p = .7,
+                                  list = FALSE,
+                                  times = 1)
+
+ufoTrain <- dataufo[ trainIndex,]
+ufoTest  <- dataufo[-trainIndex,]
+fitControl <- trainControl(## 10-fold CV
+                           method = "repeatedcv",
+                           number = 10,
+                           ## repeated ten times
+                           repeats = 10)
+
+
+set.seed(825)
+svmFit <- train(count ~ ., data = ufoTrain,
+                 method = "svmRadial",
+                 trControl = fitControl,
+                 preProc = c("center", "scale"),
+                 tuneLength = 8)
+
+predict(svmFit, newdata = ufoTest, type = "raw") 
+ufoTest$count
+```
+
+Utilizamos el paquete de _caret_ y _"svmRadial"_ para hacer el modelo.
+No hay muchos datos con los cuales entrenar por lo que nuestra estimación no es muy buena.
+
+
+####Análisis GDELT
+
+A continuación exploraremos los eventos ocurridos en México. Primero vemos el número de reportes de México en el tiempo y su evolución, es natural observar que a partir del 2008 se generaron muchos más eventos. Esto podría deberse a la crisis y la implementación del gobierno y la lucha contra el narcotráfico.
+
+
+```{r, echo=FALSE,eval=FALSE}
+
+project <- "gdelt-964"  # ID proyecto
+
+sql <- "SELECT MonthYear, count(*) FROM [gdelt-bq:full.events] WHERE ActionGeo_CountryCode = 'MX' group
+by MonthYear order by MonthYear"
+
+req.mx <- query_exec(sql, project = project)
+
+names(req.mx) <- c("month.year","reports")
+```
+
+
+```{r, echo=FALSE}
+#save(req.mx, req.mx.full, protestas.mx, mex.df , file = '/Users/lechuga/Desktop/Andres/ESCUELA/ITAM/CLASES/2do semestre/Metodos a gran escala/Proyecto 2/datos/GDELT_support.Rdata')
+load('/Users/lechuga/Desktop/Andres/ESCUELA/ITAM/CLASES/2do semestre/Metodos a gran escala/Proyecto 2/datos/GDELT_support.Rdata')
+# visualizar mejor una tabla
+head(req.mx,10)
+
+ggplot(req.mx, aes(x=month.year,y=reports))  +
+    geom_line() +
+    theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+    ggtitle("Registros de Mexico") +
+    xlab("Fechas") +
+    ylab("No. de Reportes")
+```
+
+Si suavisamos un poco la serie de tiempo tenemos que se notan tres grandes picos en los eventos, estos corresponden:
+
+* La erupción del volcán Chichonal
+* El levantamiento del ejército zapatista 
+* El brote de H1N1
+
+
+```{r,echo=FALSE,eval=FALSE}
+### Normalizamos los datos para visualizar mejor.
+
+sql <- "SELECT MonthYear, count(*) c, count(IF(ActionGeo_CountryCode = 'MX',1,NULL)) c_mx 
+    FROM [gdelt-bq:full.events] 
+    GROUP BY MonthYear
+    ORDER BY MonthYear"
+
+req.mx.full <- query_exec(sql, project = project)
+
+req.mx.full$prop <- req.mx.full$c_mx/req.mx.full$c
+
+head(req.mx.full)
+
+req.mx.full <- req.mx.full[complete.cases(req.mx.full),]
+
+names(req.mx.full) <- c("month.year","c","c_mx","prop")
+```
+
+
+```{r, echo=FALSE}
+ggplot(req.mx.full, aes(x=month.year,y=prop))  +
+    geom_line() +
+    theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+    ggtitle("Registros de Mexico") +
+    xlab("Fechas") +
+    ylab("No. de Reportes")
+
+```
+
+Vemos los datos que corresponden a conflictos 
+
+```{r,echo=FALSE,eval=FALSE}
+
+# conflictos o fightings 19
+
+
+sql <- "SELECT MonthYear, count(*) c, count(IF(ActionGeo_CountryCode = 'MX',1,NULL)) c_mx 
+    FROM [gdelt-bq:full.events]
+    WHERE EventRootCode = '19'
+    GROUP BY MonthYear
+    ORDER BY MonthYear;"
+
+protestas.mx <- query_exec(sql, project = project)
+protestas.mx$prop <- protestas.mx$c_mx/protestas.mx$c
+kable(protestas.mx)
+
+protestas.mx <- protestas.mx[complete.cases(protestas.mx),]
+
+names(protestas.mx) <- c("month.year","c","c_mx","prop")
+```
+
+
+```{r, echo=FALSE}
+ggplot(protestas.mx, aes(x=month.year,y=prop))  +
+    geom_line() +
+    theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
+    ggtitle("Protestas en Mexico") +
+    xlab("Fechas") +
+    ylab("Reportes (conflictos)")
+```
+
+
+```{r,echo=FALSE, eval=FALSE}
+#casi igual que los datos anteriores
+
+sql <- "SELECT MonthYear MonthYear, INTEGER(norm*100000)/1000 Percent
+FROM (
+    SELECT ActionGeo_CountryCode, EventRootCode, MonthYear, COUNT(1) AS c, 
+    RATIO_TO_REPORT(c) OVER(PARTITION BY MonthYear ORDER BY c DESC) norm 
+    FROM [gdelt-bq:full.events]
+    GROUP BY ActionGeo_CountryCode, EventRootCode, MonthYear
+)
+WHERE ActionGeo_CountryCode='MX' and EventRootCode='19'
+ORDER BY ActionGeo_CountryCode, EventRootCode, MonthYear;"
+
+conf2 <- query_exec(sql, project = project)
+
+```
+
+
+```{r,echo=FALSE, eval=FALSE}
+sql <- "SELECT Year, Actor1Name, Actor2Name, Count FROM (
+    SELECT Actor1Name, Actor2Name, Year, COUNT(*) Count, 
+    RANK() OVER(PARTITION BY YEAR ORDER BY Count DESC) rank
+    FROM 
+    (
+        SELECT Actor1Name, Actor2Name,  Year 
+        FROM [gdelt-bq:full.events] 
+        WHERE Actor1Name < Actor2Name and Actor1CountryCode != '' and 
+        Actor2CountryCode != '' and Actor1CountryCode!=Actor2CountryCode 
+        and ActionGeo_CountryCode='MX'),
+        (
+            SELECT Actor2Name Actor1Name, Actor1Name Actor2Name, Year 
+            FROM [gdelt-bq:full.events] 
+            WHERE Actor1Name > Actor2Name  and Actor1CountryCode != ''
+            and Actor2CountryCode != '' and Actor1CountryCode!= Actor2CountryCode
+            and ActionGeo_CountryCode='MX'),
+    WHERE Actor1Name IS NOT null
+    AND Actor2Name IS NOT null
+    GROUP EACH BY 1, 2, 3
+    HAVING Count > 100
+    )
+WHERE rank=1
+ORDER BY Year"
+
+mex_data <- query_exec(sql, project = project)
+kable(mex_data)
+```
+
+
+Si observamos los datos en México, podemos ver que casi todo el país está lleno de sucesos :( sin embargo hay que notar que hay focos en dónde existen puntos de calor, a continuación mostramos el top 10 de las ciudades más mencionadas.
+
+
+```{r,echo=FALSE,eval=FALSE}
+
+#### Opcion con dplyr ###
+
+### vamos a visualizar los enventos en SYRIA en un mapa.
+
+gdelt <- src_bigquery("gdelt-bq","full",billing = "gdelt-964")
+events <- gdelt %>% tbl("events")
+
+mex <- events %>%
+    filter(ActionGeo_CountryCode == "MX") %>%
+    select(ActionGeo_Long, ActionGeo_Lat, ActionGeo_FullName) %>%
+    group_by(ActionGeo_Lat, ActionGeo_Long, ActionGeo_FullName) %>%
+    summarise(count = n()) 
+
+mex.df <- as.data.frame(mex)
+```
+
+
+```{r, echo=FALSE}
+mex.df2 <- arrange(mex.df, desc(count))
+mex.df_top10 <- head(mex.df2[2:8707,], 10)
+
+library(ggplot2)
+library(ggmap)
+mex.map <- qmap(location = "mexico", maptype = "terrain", color = "bw", zoom = 5)
+mex.map1 <- mex.map + geom_point(data = mex.df, aes(x = ActionGeo_Long, y = ActionGeo_Lat, 
+                                               size = log(count)), color = "salmon", alpha = 0.4)
+
+mex.hist <- ggplot(mex.df_top10, aes(x=reorder(ActionGeo_FullName, count), y=count)) + geom_bar(stat="identity",fill="salmon") + xlab("Estados con más menciones") + ylab("Frecuencia") + coord_flip() 
+
+mex.map1
+mex.hist
+
+```
+
+Promedio de eventos por estado.
+
+```{r,echo=FALSE}
+mex.data <- separate(mex.df, ActionGeo_FullName, c('lugar','estado','pais'), sep = ",", extra ="drop")
+
+# por año
+prom_a <- mex.data  %>%
+  group_by(estado) %>%
+  dplyr::summarise(count = n()) %>% 
+  mutate(prom_estado = count/32) %>%
+  arrange(desc(prom_estado))
+
+ggplot(prom_a, aes(x=reorder(estado, prom_estado), y=prom_estado)) + geom_bar(stat="identity",fill="lightskyblue3") + xlab("Estados") + ylab("Promedio por Estados con más menciones") + coord_flip() 
+```
+
+
+
+
