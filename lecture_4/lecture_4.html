@@ -3384,7 +3384,7 @@ UFOAgent.sources.UFODir.interceptors.morphline.morphlineId = convertUFOFileToAvr
 # Sumidero
 UFOAgent.sinks.UFOKiteDS.type = org.apache.flume.sink.kite.DatasetSink
 UFOAgent.sinks.UFOKiteDS.channel = archivo
-UFOAgent.sinks.UFOKiteDS.kite.repo.uri = dataset:hive
+UFOAgent.sinks.UFOKiteDS.kite.repo.uri = dataset:hive://0.0.0.0:9083/ufos
 UFOAgent.sinks.UFOKiteDS.kite.dataset.name = ufos
 UFOAgent.sinks.UFOKiteDS.kite.batchSize = 10
 </code></pre>
@@ -3392,9 +3392,18 @@ UFOAgent.sinks.UFOKiteDS.kite.batchSize = 10
 </section>
 <section id="slide-sec-11-5-21">
 <h4 id="sec-11-5-21">Ejercicio III</h4>
+<ul>
+<li><a href="http://kitesdk.org/docs/current/morphlines/">Morphline</a> es parte de <code>kite</code> y permite modificar los <i>streams</i> de datos hacia los <i>sumideros</i>.
+<ul>
+<li>El archivo <code>morphline.conf</code> (que está incluido en <code>github</code>) debe de ser colocado acordemente.</li>
+
+</ul></li>
+
+<li>Esta configuración consume más memoria de la que está asignada por</li>
+
+</ul>
 <p>
-Esta configuración consume más memoria de la que está asignada por
-<i>default</i>, observa el parámetro <code>-Xmx100m</code>
+<i>default</i>, observa el parámetro <code>-Xmx300m</code>
 </p>
 <ul>
 <li>Quítalo, para que veas el error que sale (te puede salir en tu
@@ -3402,14 +3411,25 @@ proyecto final)</li>
 
 </ul>
 <pre><code data-trim>
- flume-ng agent -n UFOAgent -Xmx100m --conf ingestion -f ingestion/spooldir_example.conf
+ flume-ng agent -n UFOAgent -Xmx300m --conf ingestion -f ingestion/spooldir_example.conf
 </code></pre>
 
-<p>
-<i>Nota:</i> Esto está marcando un error que no aparecía en la versión
-anterior de <code>flume</code>, ya la reporté <a href="https://github.com/kite-sdk/kite-examples/issues/27">aquí</a>.
-</p>
+<ul>
+<li>Hecho esto, conéctense a <code>beeline</code> y hagan un <code>select * from ufos</code>.
+<ul>
+<li>Debería de haber 530 renglones.</li>
 
+</ul></li>
+
+<li>Ahora pueden copiar el archivo de <code>UFO-Dic-204.tsv</code> a la carpeta <code>/opt/ufos/</code> y debería de agregarlo a la tabla.
+<ul>
+<li>Salvo el error que les va a marcar (¡por fin sabremos por qué es
+el error! de que haya menos renglones que líneas, ve el ejemplo de
+<code>kite-dataset</code>), el <code>select * ...</code> debería de marcar 830 renglones.</li>
+
+</ul></li>
+
+</ul>
 
 </section>
 <section id="slide-sec-11-5-22">
@@ -3481,7 +3501,7 @@ para transformar los datos.</li>
 sqoop import --connect jdbc:postgresql://host/database \
 --username usuario --password contraseña  \
 --input-fields-terminated-by "\t"
---table <tabla> --target-dir <directorio>
+--table tabla --target-dir directorio
 </code></pre>
 
 <p>
@@ -3504,7 +3524,7 @@ separar los campos en el <code>hdfs</code>.
 sqoop import --connect jdbc:postgresql://host/database \
 --username usuario --password contraseña  \
 --query 'select tabla_1.*, tabla_2.* from tabla_1 join tabla_2 on (tabla_1.id = tabla_2.id) where $CONDITIONS' \
---split-by tabla_1.id --target-dir <directorio>
+--split-by tabla_1.id --target-dir directorio
 </code></pre>
 
 <p>
@@ -3529,8 +3549,8 @@ los <i>queries</i>.
 <pre><code data-trim>
 sqoop import --connect jdbc:postgresql://host/database \
 --username usuario --password contraseña  \
---table <tabla> --hive-import  \
---hive-overwrite --split-by <columna>
+--table tabla --hive-import  \
+--hive-overwrite --split-by columna
 </code></pre>
 
 <p>
@@ -3581,7 +3601,7 @@ sqoop eval --connect jdbc:postgresql://host/database \
 --username usuario --password contraseña  \
 --export-dir directorio_hdfs  --table tabla \
 --columns lista_de_columnas \
---input-fields-terminated-by "\t" \
+--input-fields-terminated-by "\t"
 </code></pre>
 
 
@@ -3635,7 +3655,7 @@ crear un <code>job</code></li>
 </ul>
 
 <pre><code data-trim>
-sqoop job --create <nombre_job> --import \
+sqoop job --create nombre_job --import \
 --connect jdbc:postgresql://host/database \
 --username usuario --password contraseña  \
 --table tabla --check-column columna-regularmente-id \
@@ -3647,7 +3667,7 @@ y luego ejecutarlo cuando se necesite:
 </p>
 
 <pre><code data-trim>
-sqoop job --exec <nombre_job>
+sqoop job --exec nombre_job
 </code></pre>
 
 </section>

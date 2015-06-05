@@ -1,0 +1,427 @@
+---
+title: "Proyecto 2 - Reporte UFO (y un poco de GDELT)"
+author: "Sergio Haro Perez"
+date: "30/05/2015"
+output: html_document
+---
+
+```{r, echo=FALSE, include=FALSE}
+library(ggplot2)
+library(plyr)
+library(dplyr)
+library(tidyr)
+library(lubridate)
+library(scales)
+library(maptools)
+library(rgdal)
+library(ggmap)
+library(knitr)
+library(magrittr)
+library(gridExtra)
+library(plotly)
+options(digits = 16)
+
+# estableciendo zona de trabajo
+# set_credentials_file("sharop", "gwpcumvski")
+mi.carpeta = "/home/sharop/proyectos/"
+
+setwd(paste0(mi.carpeta,"proyecto_final_doc"))
+source("src/utils.r")
+
+df <- readRDS("data/ufos_p1.rds")
+ufo <- readRDS("data/ufos.rds")
+protestas.us <- readRDS("data/protestas.us.rdata")
+
+df <- df %>%
+  mutate(date = as.Date(df$Date...Time,format ='%m/%d/%y'),
+         city = City,
+         state = State,
+         shape = Shape) %>%
+  select(date,city,state,shape)
+
+```
+
+National UFO Reporting Center, menciona en su pagina ser la mas comprensiva y actualizada fuente de información desde 1974. 
+Los reportes son capturados mediantes un formulario y despues son agrupados por mes y por años, por cada mes se presenta una tabla como reporte consolidado:
+
+* Date / Time
+* City
+* State
+* Shape
+* Duration
+* Summary	Posted
+
+Cada fecha de publicación contiene un vinculo hacia el detalle del de ese dia.
+
+
+```{r, echo=FALSE}
+kable(head(ufo,1), format="markdown")
+```
+
+Ahora las preguntas correspondientes al proyecto, son las siguientes:
+
++ ¿Primer avistamiento en cada estado? 
+<div>
+<h1>1969</h1>
+<p>El primer avistamiento cronologico, aunque en los textos se encuentra 1762.  </p>
+</div>
+```{r, echo=FALSE}
+df$state <- toupper(df$state)
+dfna<-df[!is.na(df$state),]
+dfcln<-dfna[!dfna$state=='',]
+dfcln<-dfcln[dfcln$state!="AB",]
+dfcln<-dfcln[dfcln$state!="BC",]
+dfcln<-dfcln[dfcln$state!="MB",]
+dfcln<-dfcln[dfcln$state!="NB",]
+dfcln<-dfcln[dfcln$state!="NT",]
+dfcln<-dfcln[dfcln$state!="ON",]
+dfcln<-dfcln[dfcln$state!="PR",]
+dfcln<-dfcln[dfcln$state!="QC",]
+dfcln<-dfcln[dfcln$state!="SK",]
+
+dfcln<-dfcln[!grepl("\\((.*)?\\)",dfcln$city),]
+dfcln$state[dfcln$state=="DC"]<-"WA"
+edo <- dfcln %>% group_by (state) %>% summarise(sum=n())
+
+df.date.arrange <- arrange(dfcln,date)
+state.first <- arrange(aggregate(date ~ state, data = df.date.arrange, `[`, 1),date)
+state.first <- state.first[state.first$state !="",]
+kable(head(state.first,5))
+```
+
+
+
++ ¿Primer avistamiento de cada forma?
+
+<div style="display: inline-block;position: relative;">
+<img src="images/space invader.svg" width=200>
+</div>
+
+```{r, echo=FALSE}
+shape.first <- arrange(aggregate(date ~ shape, data = df.date.arrange, `[`, 1),date)
+kable(head(shape.first,5))
+```
+
+
++ ¿Promedio de entre avistamientos, por mes, por año? (¡¡Click Sobre el grafico!!)
+
+```{r, echo=FALSE, include=FALSE}
+
+
+
+#Promedio Por mes
+promedio.mes <- dplyr::summarise(dplyr::group_by(df,mes=month(df$date,label=T)), media = n()/12)
+
+gmes <- ggplot(promedio.mes,aes(x=mes,y=round(media,2))) +
+    geom_bar(stat = "identity", position="dodge") +
+    theme_minimal() +
+    theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+    ggtitle("Promedio Mensual") +
+    xlab("Mes") +
+    ylab("Promedio")
+
+
+#Por año
+year <- dplyr::summarise(dplyr::group_by(df,year=year(df$date)), sum = n())
+years <- as.numeric(count(year))
+
+promedio.y <- year %>% group_by (year) %>% summarise(media=sum(sum)/years)%>%
+    filter(year<=2015) %>% arrange(desc(year))##existen años mayores al 2015
+
+gyear <- ggplot(promedio.y,aes(x=year,y=round(media,2))) +
+    geom_bar(stat = "identity", position="dodge") +
+    theme_minimal() +
+    theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+    ggtitle("Promedio Anual") +
+    xlab("Año") +
+    ylab("Promedio")
+
+```
+<div>
+<a href="https://plot.ly/~sharop/6/" target="_blank" title="Promedio Mensual" style="display: block; text-align: center;"><img src="https://plot.ly/~sharop/6.png" alt="Promedio Mensual" style="max-width: 100%;"  onerror="this.onerror=null;this.src='https://plot.ly/404.png';" /></a>
+<script data-plotly="sharop:6" src="https://plot.ly/embed.js" async></script>
+</div>
+```{r, echo=FALSE}
+garr<- grid.arrange(gyear)
+#py <- plotly()
+#py$ggplotly(gmes, kwargs=list(filename="geom_histogram", fileopt="overwrite"))
+#py$ggplotly(gyear, kwargs=list(filename="geom_histogram", fileopt="overwrite"))
+
+```
+
+
++ ¿Por estado?
+
+```{r, echo=FALSE, include=FALSE}
+
+edos <- as.numeric(count(edo))
+
+promedio.edo <- edo %>% 
+    group_by (state) %>% 
+    summarise(media=sum(sum)/edos)%>% arrange(desc(media))
+
+g5 <- ggplot(promedio.edo[1:30,],aes(reorder(state,-media),y=round(media,2))) +
+    geom_bar(stat = "identity", position="dodge") +
+    theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+    ggtitle("Promedio USA") +
+    xlab("Estado") +
+    ylab("Promedio")
+
+#py <- plotly()
+#py$ggplotly(gmes, kwargs=list(filename="geom_histogram", fileopt="overwrite"))
+#py$ggplotly(g5, kwargs=list(filename="geom_histogram", fileopt="overwrite"))
+
+
+```
+<div>
+<a href="https://plot.ly/~sharop/4/" target="_blank" title="Promedio USA" style="display: block; text-align: center;"><img src="https://plot.ly/~sharop/4.png" alt="Promedio USA" style="max-width: 100%;"  onerror="this.onerror=null;this.src='https://plot.ly/404.png';" /></a>
+<script data-plotly="sharop:4" src="https://plot.ly/embed.js" async></script>
+</div>
+
++ ¿Cuál estado tiene mayor varianza?
+```{r, echo=FALSE, include=FALSE}
+promedio.edo <- edo %>% 
+    group_by (state) %>% 
+    summarise(media=sum(sum)/edos)%>% arrange(desc(media))
+
+edostat<- edo%>%
+    mutate(a=sum-mean(edo$sum))%>%
+    mutate(v=a**2)%>%
+    mutate(ds=sqrt(v))
+
+edostat.var <- edostat %>% 
+    arrange(desc(v))
+
+dplyr::summarise(dplyr::group_by(dfcln,mes=month(dfcln$date,label=T)), media = n()/12)
+
+```
+
+```{r, echo=FALSE}
+
+
+ggplot(head(edostat.var,10), aes(x = state, y = sum)) + 
+    geom_boxplot(aes(fill=factor(state))) + 
+    geom_point(aes(color = factor(state))) +
+    theme(axis.text.x = element_text(angle = 45, hjust = 1))+geom_jitter()
+#grid.arrange(boxedo)
+
+```
+
++ ¿Existen olas temporales? 
+
+
+```{r, echo=FALSE, include=FALSE}
+
+date.reports <-dfcln %>%
+  #filtramos para eliminar fechas futuras.
+  filter(date > as.Date("2013-01-01") , date < as.Date("2015-05-01")) %>%
+  mutate(mon = as.factor(month(date,label=T)),
+         year = as.factor(year(date)),
+         mony = paste0(mon,year))%>% 
+  arrange(date)
+
+date.reports$levels <- factor(date.reports$mony, levels = aggregate(mony ~ mon +year, 
+                                                                    data = date.reports, `[`, 1)$mony)
+```
+Podemos ver en las graficas anteriores, que existe un incremento de avistamientos en la ultima decada. Tomaremos los avistamientos de los ultimos 3 años, ya que respresentan un incremento significativo.
+
+Podemos analizar que los meses con mayor numero de avistamientos son en los meses de Julio teniendo un decremento hasta Diciembre.
+
+```{r, echo=FALSE}
+ggplot(date.reports, aes(x=levels)) +
+  geom_histogram()+
+  theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
+  ggtitle("Avistamiento por meses")+
+  xlab("Mes") +
+  ylab("Numero de avistamientos")
+
+```
+
+
+
+```{r, echo=FALSE,include=FALSE}
+
+day <- df %>%
+  mutate(day = as.factor(wday(date,label = T))) %>%
+  group_by(day) %>%
+  summarise(count = sum(n())/7)
+```
+
+Y vemos que los dias de la semana con mas avistamientos son Sabados y Domingo...
+
+```{r, echo=FALSE}
+ggplot(day,aes(x=day,y=count)) +
+  geom_bar(stat = "identity", position="dodge") +
+  theme_minimal() +
+  ggtitle("Avistamiento por dia de la semana")+
+  xlab("Dia de la semana") +
+  ylab("Reporte de avistamientos")
+
+```
+
+```{r, echo=FALSE, include=FALSE}
+states <- map_data("state")
+
+
+z <- states$region
+state <- gsub("\\b([a-z])","\\U\\1",z,perl=TRUE)
+states$state <-  setNames(state.abb, state.name)[state]
+
+avistamientos_states <- dfcln %>%
+    group_by(state) %>%
+    summarise(count = n())
+  
+states_df <- left_join(states, avistamientos_states,by = 'state')
+states_df <- arrange(states_df, order)
+
+map_plot <- ggplot(states_df, aes(x = long, y = lat, group = group, fill = count)) +
+    geom_polygon() + coord_map('polyconic') +
+    scale_fill_gradient2(low = '#9ecae1', mid = '#4292c6', high = '#084594') +
+    ggtitle(" Avistamientos UFO") +
+    labs(fill = '')
+
+```
++ ¿Existen olas espacio-temporales?
+
+Analizando en el mapa, vemos que el estado con mayor numero de avistamientos es California.
+
+```{r, echo=FALSE}
+map_plot
+```
+
++ ¿Narrativas parecidas?
+```{r, echo=FALSE, include=FALSE}
+######################## PREGUNTA : 4 ################################## 
+library(tm)
+library(Rstem)
+library(RCurl) 
+library(bitops) 
+library(digest) 
+library(rjson)
+library(cluster)
+library(wordcloud)
+library(e1071)
+library(gmodels)
+library(stylo)
+ufo <-ufo[1:5000,]
+ufo$report <- tolower(ufo$report)
+
+corpus <- Corpus(VectorSource(ufo$report), list(language ="en_US"))
+corpus <- tm_map(corpus, removeWords, stopwords(kind = "en"))
+corpus <- tm_map(corpus, removeWords, stylo.pronouns(language = "English"))
+corpus <- tm_map(corpus , removePunctuation)
+corpus <- tm_map(corpus, stemDocument, language = "english",lazy=TRUE)
+corpus <- tm_map(corpus, stripWhitespace)
+corpus <- tm_map(corpus, content_transformer(tolower))
+corpus <- tm_map(corpus, removeNumbers)
+
+corpus <- tm_map(corpus, PlainTextDocument)
+termDocMatrix <- TermDocumentMatrix(corpus, control = list(wordLengths = c(1, Inf)))
+
+(freq.terms <- findFreqTerms(termDocMatrix, lowfreq=116))
+term.freq <- rowSums(as.matrix(termDocMatrix))
+term.freq <- subset(term.freq, term.freq >=5)
+dfTermfq <- data.frame(term = names(term.freq), freq = term.freq)
+
+#Clustering de terminos
+#Removemos terminos dispersos de un documento de terminos
+
+```
+
+De los reportes de avistamientos, podemos obtener la frecuencia de las palabras.
+
+```{r,echo=FALSE}
+ggplot(head(arrange(dfTermfq,desc(freq)),50), aes(x=term, y=freq)) + geom_bar(stat = "identity") + coord_flip()
+```
+
+De esta palabras, podemos crear una nube con las 80 palabras mas frecuentes.
+
+```{r,echo=FALSE}
+wordcloud(corpus, max.words = 80,  scale = c(3, 0.5))
+
+```
+
+esta nube nos arroja las palabras que mas se repiten en los comentarios, mismas que podriamos buscar con que palabras se relacionan mas, esto con el objetivo de ver cual es la narrativa mas común.
+
+Utilizando las palabras ma frecuentes. 
++ Light
++ Object
++ Sky
++ Bright
+
+podemos evaluar con que otros terminos se asocian frecuentemente.
+
+```{r, echo=FALSE }
+assoc<-findAssocs(termDocMatrix, c("light","object","sky","bright"),c(.25,.25,.2,.2))
+unlist(assoc)
+```
+
+Podemos analizar que la mayor parte de las relaciones con Light, que es el termino mas frecuente se da con 
++ see 
++ one 
++ red 
+
+
+
+```{r, echo=FALSE }
+tdm2 <- removeSparseTerms(termDocMatrix, sparse=0.95)
+m2 <- as.matrix(tdm2)
+distMatrix <- dist(scale(m2))
+fit <- hclust(distMatrix)
+plot(fit, hang=1)
+rect.hclust(fit, k = 2)
+
+```
+
++ ¿Con características sociales?  
+Utilizando la base de datos GDELT, se realiza un concentrado de eventos entre 2013 y 2015 como se vio en los graficos anteriores, estas consultas se realiza sobre protestas.
+
+
+```{r, echo=FALSE, include=FALSE}
+#library(bigrquery)
+#library(dplyr)
+#library(ggplot2)
+#library(knitr)
+#get_access_cred()
+# Eventos que se registraron  en US por MonthYear. (Todos los eventos).
+# Utilizamos el idicador de que es un estado de US entre 2013 y 2015
+#project <- "massive-period-93602"  # ID proyecto
+
+
+#sql <- "SELECT MonthYear, count(*) c, count(IF(ActionGeo_CountryCode = 'US',1,NULL)) c_us 
+#    FROM [gdelt-bq:full.events]
+#    WHERE EventRootCode = '14' AND MonthYear >= 201301 AND MonthYear <= 201506 
+#    GROUP BY MonthYear
+#    ORDER BY MonthYear;"
+
+#protestas.us <- query_exec(sql, project = project)
+
+protestas.us$prop <- protestas.us$c_us/protestas.us$c
+
+head(protestas.us)
+
+protestas.us <- protestas.us[complete.cases(protestas.us),]
+
+names(protestas.us) <- c("month.year","c","c_us","prop")
+
+#saveRDS(protestas.us, "data/protestas.us.rdata")
+
+```
+
+Podemos observar que el mayor numero de protestas se dio en el mes de Diciembre en US, y los avistamientos fueron mayores en Julio. Por lo que podriamos pensar, que es posible que no habia tantos UFOS mirando protestas como los juegos artificiales del 4 de Julio.   :P
+
+
+```{r, echo=FALSE}
+ggplot(protestas.us, aes(x=factor(month.year),y=c_us))  +
+    geom_bar(stat="identity") +
+    theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
+    ggtitle("Protestas en US") +
+    xlab("Fechas") +
+    ylab("Reportes")
+
+
+```
+
+<div style="display: inline-block;position: relative;">
+<img src="images/jm.png" width=200>
+</div>

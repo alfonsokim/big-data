@@ -1,0 +1,142 @@
+Reporte técnico.
+
+La información UFO fue scrapeada de la página http://www.nuforc.org/webreports/ndxevent.html y fue puesta en un PostgreSQL siguiendo los siguientes pasos:
+
+Configuracion de usuario de Unix
+creamos un usuario de sistema operativo llamado mont y definimos su contraseña
+
+sudo adduser mont
+
+
+Luego hay que dar permisos al usuario. lo hacen modificando el archivo visudo con el siguiente comando que abre vim
+
+sudo /usr/sbin/visudo
+
+Hay que editar el archivo y poner abajo de root nuestro usuario con los mismos privilegios
+
+Recordar Escape (para salir de modo insert) y luego :x (para guardar cambios y salir)
+
+Iniciamos el servicio
+		
+
+Hay que identificar la ubicacion del archivo pg_hba.conf cambiando al usuario postgres y entrando a psql
+
+su postgres
+
+psql
+
+select name, setting from pg_settings where category = ‘/etc/postgresql/9.4/main/pg_hba.conf’;
+
+En mi caso fue “/etc/postgresql/9.4/main/pg_hba.conf”
+
+Modificamos el archivo pg_hba.conf desde root
+
+Ctrl + d para salir a postgres
+
+Ctrl + d para salir a root		
+
+emacs /etc/postgresql/9.4/main/pg_hba.conf
+
+Cambian postgress por all para permitir el acceso a todos los usuarios locales y cambiamos a ident el mecanismo de autenticacion para usuarios locales
+
+Salimos con Ctrl +x Ctrl +s Ctrl +x Ctrl +c
+
+Hacemos un reload
+
+/etc/init.d/postgresql reload
+
+Cambiamos a postgres para crear el usuario mont
+
+create role mont login password ‘Pensar31’ superuser valid until ‘infinity’;
+
+Creacion de las bases
+create database ufo owner mont;
+
+create database gdelt owner mont;
+
+nos cambiamos a usuario mont
+
+Ctrl + d para salir de psql
+
+su mont para cambiar de usuario
+
+psql -d ufo 
+
+psql -u-f-h
+
+para entrar a la base ufo desde el usuario mont
+
+Instalamos las extensiones y creamos los esquemas
+
+create extension dblink; create extension file_fdw; create extension fuzzystrmatch; create extension hstore; create extension pgcrypto; create extension postgres_fdw; create extension tablefunc; create extension cube; create extension dict_xsyn; create extension pg_trgm; create schema “$user”; create schema dirty; create schema clean; create schema shameful; create schema playground; create schema output; create schema mining; create schema ml; CREATE EXTENSION “uuid-ossp”;
+
+Damos accesos a los esquemas dirty y clean
+
+grant usage on schema dirty to public;
+
+alter default privileges in schema dirty grant select, references on tables to public;
+
+alter default privileges in schema dirty grant select, update on sequences to public;
+
+alter default privileges in schema dirty grant execute on functions to public;
+
+alter default privileges in schema dirty grant usage on types to public;
+
+grant usage on schema clean to public;
+
+grant select, references, trigger on all tables in schema clean to public;
+
+grant execute on all functions in schema clean to public; grant select, update on all sequences in schema clean to public;
+
+Nos conectamos a la base gdelt
+
+\connect gdelt
+
+Instalamos las extensiones y creamos los esquemas en gdelt
+
+create extension dblink; create extension file_fdw; create extension fuzzystrmatch; create extension hstore; create extension pgcrypto; create extension postgres_fdw; create extension tablefunc; create extension cube; create extension dict_xsyn; create extension pg_trgm; create schema “$user”; create schema dirty; create schema clean; create schema shameful; create schema playground; create schema output; create schema mining; create schema ml; CREATE EXTENSION “uuid-ossp”;
+
+Damos accesos a los esquemas dirty y clean
+
+grant usage on schema dirty to public;
+
+alter default privileges in schema dirty grant select, references on tables to public;
+
+alter default privileges in schema dirty grant select, update on sequences to public;
+
+alter default privileges in schema dirty grant execute on functions to public;
+
+alter default privileges in schema dirty grant usage on types to public;
+
+grant usage on schema clean to public;
+
+grant select, references, trigger on all tables in schema clean to public;
+
+grant execute on all functions in schema clean to public; grant select, update on all sequences in schema clean to public;
+
+Validamos que se hayan creado las bases y salimos
+
+
+Uno vez creados los esquemas y las extensiones, se agregan los datos con la siguiente instrucción:
+
+
+psql -d ufo -f /laruta/sql/ufo.sql
+
+Se ingresa a postgres y una vez dentro, se pueden realizar los querys necesarios.
+
+¿Primer avistamiento en cada estado? 
+select state, date from ufo order by date;
+
+¿Primer avistamiento de cada forma? 
+select shape, date from ufo order by date;
+
+Promedio de avistamientos por mes 
+select EXTRACT (MONTH FROM date) as mes, count(*)/12 as media from ufo;
+
+
+
+
+
+
+
+

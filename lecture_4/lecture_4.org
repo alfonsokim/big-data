@@ -2284,7 +2284,7 @@ UFOAgent.sources.UFODir.interceptors.morphline.morphlineId = convertUFOFileToAvr
 # Sumidero
 UFOAgent.sinks.UFOKiteDS.type = org.apache.flume.sink.kite.DatasetSink
 UFOAgent.sinks.UFOKiteDS.channel = archivo
-UFOAgent.sinks.UFOKiteDS.kite.repo.uri = dataset:hive
+UFOAgent.sinks.UFOKiteDS.kite.repo.uri = dataset:hive://0.0.0.0:9083/ufos
 UFOAgent.sinks.UFOKiteDS.kite.dataset.name = ufos
 UFOAgent.sinks.UFOKiteDS.kite.batchSize = 10
 </code></pre>
@@ -2292,19 +2292,26 @@ UFOAgent.sinks.UFOKiteDS.kite.batchSize = 10
 
 *** Ejercicio III
 
-Esta configuración consume más memoria de la que está asignada por
-/default/, observa el parámetro =-Xmx100m=
+- [[http://kitesdk.org/docs/current/morphlines/][Morphline]] es parte de =kite= y permite modificar los /streams/ de datos hacia los /sumideros/.
+   - El archivo =morphline.conf= (que está incluido en =github=) debe de ser colocado acordemente.
+
+- Esta configuración consume más memoria de la que está asignada por
+/default/, observa el parámetro =-Xmx300m=
   - Quítalo, para que veas el error que sale (te puede salir en tu
     proyecto final)
 #+begin_html
 <pre><code data-trim>
- flume-ng agent -n UFOAgent -Xmx100m --conf ingestion -f ingestion/spooldir_example.conf
+ flume-ng agent -n UFOAgent -Xmx300m --conf ingestion -f ingestion/spooldir_example.conf
 </code></pre>
 #+end_html
 
-/Nota:/ Esto está marcando un error que no aparecía en la versión
-anterior de =flume=, ya la reporté [[https://github.com/kite-sdk/kite-examples/issues/27][aquí]].
+- Hecho esto, conéctense a =beeline= y hagan un =select * from ufos=.
+  - Debería de haber 530 renglones.
 
+- Ahora pueden copiar el archivo de =UFO-Dic-204.tsv= a la carpeta =/opt/ufos/= y debería de agregarlo a la tabla.
+  - Salvo el error que les va a marcar (¡por fin sabremos por qué es
+    el error! de que haya menos renglones que líneas, ve el ejemplo de
+    =kite-dataset=), el =select * ...= debería de marcar 830 renglones.
 
 *** Bibliografía
 
@@ -2354,7 +2361,7 @@ anterior de =flume=, ya la reporté [[https://github.com/kite-sdk/kite-examples/
 sqoop import --connect jdbc:postgresql://host/database \
 --username usuario --password contraseña  \
 --input-fields-terminated-by "\t"
---table <tabla> --target-dir <directorio>
+--table tabla --target-dir directorio
 </code></pre>
 #+end_html
 
@@ -2371,7 +2378,7 @@ separar los campos en el =hdfs=.
 sqoop import --connect jdbc:postgresql://host/database \
 --username usuario --password contraseña  \
 --query 'select tabla_1.*, tabla_2.* from tabla_1 join tabla_2 on (tabla_1.id = tabla_2.id) where $CONDITIONS' \
---split-by tabla_1.id --target-dir <directorio>
+--split-by tabla_1.id --target-dir directorio
 </code></pre>
 #+end_html
 
@@ -2390,8 +2397,8 @@ los /queries/.
 <pre><code data-trim>
 sqoop import --connect jdbc:postgresql://host/database \
 --username usuario --password contraseña  \
---table <tabla> --hive-import  \
---hive-overwrite --split-by <columna>
+--table tabla --hive-import  \
+--hive-overwrite --split-by columna
 </code></pre>
 #+end_html
 
@@ -2433,7 +2440,7 @@ sqoop eval --connect jdbc:postgresql://host/database \
 --username usuario --password contraseña  \
 --export-dir directorio_hdfs  --table tabla \
 --columns lista_de_columnas \
---input-fields-terminated-by "\t" \
+--input-fields-terminated-by "\t"
 </code></pre>
 #+end_html
 
@@ -2479,7 +2486,7 @@ sqoop job --exec nombre_job
 
 #+begin_html
 <pre><code data-trim>
-sqoop job --create <nombre_job> --import \
+sqoop job --create nombre_job --import \
 --connect jdbc:postgresql://host/database \
 --username usuario --password contraseña  \
 --table tabla --check-column columna-regularmente-id \
@@ -2491,7 +2498,7 @@ y luego ejecutarlo cuando se necesite:
 
 #+begin_html
 <pre><code data-trim>
-sqoop job --exec <nombre_job>
+sqoop job --exec nombre_job
 </code></pre>
 #+end_html
 

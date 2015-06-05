@@ -1,0 +1,319 @@
+###Limpiar la base de ufo fue una lata que involucró utilizar mucho sed y awk, con un poco de cut
+###Muchos de los pasos ya venían en el lecture para limpiar en linea de comando.
+
+sudo service postgresql start
+
+create table ufos (
+fecha varchar,
+fecha2 varchar,
+ciudad varchar,
+estado varchar,
+figura varchar,
+duracion varchar,
+descripcion varchar,
+reportado varchar);
+
+ufo=# \copy ufos from '/home/itam/proyectos/ufos/UFO_OK.tsv' with delimiter E'|' NULL AS 'na';
+
+alter table ufos alter column fecha type date using to_date(fecha,'MM-DD-YY');
+
+
+###Responder preguntas con sql
+
+
+###Primer avistamiento por estado
+select min(fecha), estado from ufos group by estado order by estado;
+
+    min     | estado 
+------------+--------
+ 1970-01-01 | 
+ 1970-04-15 | AB
+ 1972-08-30 | AK
+ 1970-03-30 | AL
+ 1970-10-01 | AR
+ 1970-04-15 | AZ
+ 1970-03-15 | BC
+ 1970-01-15 | CA
+ 1970-01-24 | CO
+ 1970-06-15 | CT
+ 1992-04-15 | Ca
+ 1974-06-06 | DC
+ 1972-05-01 | DE
+ 1970-01-16 | FL
+ 1996-04-28 | Fl
+ 1970-02-20 | GA
+ 1970-06-06 | HI
+ 1970-06-01 | IA
+ 1973-07-24 | ID
+ 1970-05-01 | IL
+ 1970-04-20 | IN
+ 1971-02-05 | KS
+ 1970-10-10 | KY
+ 1971-07-10 | LA
+ 1970-06-01 | MA
+ 1973-06-15 | MB
+ 1970-06-10 | MD
+ 1971-09-01 | ME
+ 1970-01-01 | MI
+ 1970-06-15 | MN
+ 1970-01-01 | MO
+ 1972-06-01 | MS
+ 1970-06-10 | MT
+ 1970-08-15 | NB
+ 1970-06-23 | NC
+ 1970-07-20 | ND
+ 1972-01-05 | NE
+ 1975-01-01 | NF
+
+
+###Primer avistamiento por figura
+    min     |   figura   
+------------+------------
+ 1970-02-15 | 
+ 1970-05-05 | Changing
+ 1970-09-15 | Chevron
+ 1970-01-24 | Cigar
+ 1970-02-20 | Circle
+ 1970-06-30 | Cone
+ 1997-03-22 | Crescent
+ 1971-08-11 | Cross
+ 1970-01-15 | Cylinder
+ 1974-07-18 | Delta
+ 1970-09-15 | Diamond
+ 1970-01-01 | Disk
+ 1996-03-15 | Dome
+ 1970-01-20 | Egg
+ 1970-07-22 | Fireball
+ 1997-11-30 | Flare
+ 1971-06-01 | Flash
+ 1971-07-15 | Formation
+ 1997-12-16 | Hexagon
+ 1970-01-01 | Light
+ 1970-02-20 | Other
+ 1970-01-16 | Oval
+ 1970-01-14 | Rectangle
+ 1995-12-14 | Round
+ 1970-01-22 | Sphere
+ 2015-03-09 | TRIANGULAR
+ 1970-04-17 | Teardrop
+ 1970-05-20 | Triangle
+ 1970-01-01 | Unknown
+ 1996-06-24 | changed
+ 1994-06-08 | changing
+ 1996-10-30 | cigar
+ 1978-01-09 | circle
+ 1976-08-15 | cylinder
+ 1997-10-10 | delta
+ 1996-06-13 | diamond
+ 1997-05-05 | egg
+ 1995-09-28 | fireball
+
+###Promedio de avistamientos por mes y año
+
+select avg(cuenta), mes
+from(select count(fecha) cuenta,extract(year from fecha) anio, 
+extract(month from fecha) mes, estado
+from ufos
+group by extract(year from fecha), 
+extract (month from fecha), estado) as base
+group by (mes)
+order by (mes);
+
+        avg         | mes 
+--------------------+-----
+ 5.6103476151980598 |   1
+ 4.9247121346324181 |   2
+ 5.4217067108533554 |   3
+ 5.1141304347826087 |   4
+ 4.8512635379061372 |   5
+ 4.6379944802207912 |   6
+ 6.1336161187698834 |   7
+ 5.9702346880366342 |   8
+ 6.0897689768976898 |   9
+ 5.9026143790849673 |  10
+ 6.0802422407267222 |  11
+ 5.6908333333333333 |  12
+
+select avg(cuenta) promedio, anio
+from(select count(fecha) cuenta,extract(year from fecha) anio, 
+extract(month from fecha) mes, estado
+from ufos
+group by extract(year from fecha), 
+extract (month from fecha), estado) as base
+group by (anio)
+order by (anio);
+
+          avg           | anio 
+------------------------+------
+     1.4871794871794872 | 1970
+     1.3921568627450980 | 1971
+     1.5781250000000000 | 1972
+     1.5808383233532934 | 1973
+     1.6524064171122995 | 1974
+     1.7766990291262136 | 1975
+     1.7771739130434783 | 1976
+     1.7231638418079096 | 1977
+     1.9693877551020408 | 1978
+     1.7654320987654321 | 1979
+     1.6250000000000000 | 1980
+     1.5426356589147287 | 1981
+     1.5620437956204380 | 1982
+     1.3925925925925926 | 1983
+     1.4615384615384615 | 1984
+     1.5732484076433121 | 1985
+     1.5886524822695035 | 1986
+     1.4719101123595506 | 1987
+     1.6467065868263473 | 1988
+     1.5628415300546448 | 1989
+     1.5515463917525773 | 1990
+     1.5833333333333333 | 1991
+     1.6120218579234973 | 1992
+     1.8400000000000000 | 1993
+     2.0124481327800830 | 1994
+     3.3533487297921478 | 1995
+     2.7046070460704607 | 1996
+     3.3262910798122066 | 1997
+
+
+
+###Promedio por estado.
+
+select avg(cuenta) promedio, estado
+from(select count(fecha) cuenta,extract(year from fecha) anio, 
+extract(month from fecha) mes, estado
+from ufos
+group by extract(year from fecha), 
+extract (month from fecha), estado) as base
+group by (estado)
+order by (promedio) desc
+limit 10;
+
+      promedio       | estado 
+---------------------+--------
+ 18.9259259259259259 | CA
+ 13.4861591695501730 | 
+ 11.6247191011235955 | FL
+ 11.5852534562211982 | WA
+  9.2005649717514124 | AZ
+  8.9065040650406504 | TX
+  7.7979797979797980 | NY
+  7.6750000000000000 | IL
+  7.3729603729603730 | PA
+  7.0578313253012048 | OH
+(10 rows)
+
+
+###Estado con mayor varianza
+
+select stddev(cuenta) desviacion, estado
+from(select count(fecha) cuenta,extract(year from fecha) anio, 
+extract(month from fecha) mes, estado
+from ufos
+group by extract(year from fecha), 
+extract (month from fecha), estado) as base
+group by (estado)
+order by (desviacion) desc
+limit 10;
+
+     desviacion      | estado 
+---------------------+--------
+                     | Ca
+                     | VI
+ 23.2855556245333992 | CA
+ 15.7433042229631767 | 
+ 14.6629034962789133 | FL
+ 13.0119278750568268 | WA
+  9.6515354652537361 | TX
+  9.4335494187814312 | IL
+  9.3434033517730056 | NY
+  9.1962414026243307 | PA
+(10 rows)
+
+
+###Para los siguientes pasos exporto la tabla de conteos por mes año y estado a un csv y la analizo en R
+
+#tuve que cambiar los permisos para que pudiera copiarse
+
+copy (select count(fecha) cuenta,fecha, estado
+from ufos
+group by fecha,estado)
+to '/home/itam/proyectos/ufos/linea_tiempo.csv' delimiter ',' csv header;
+
+
+### Codigo de R
+
+datos<-read.csv("/home/jared/big-data/alumnos/jared275/data/ufos/linea_tiempo.csv")
+
+
+###Código para cargar gdelt a mi base de datos
+
+create table gdelt (
+  GLOBALEVENTID  varchar	,
+  SQLDATE	varchar	,
+  MonthYear	varchar	,
+  Year	varchar	,
+  FractionDate	varchar	,
+  Actor1Code	varchar	,
+  Actor1Name	varchar	,
+  Actor1CountryCode	varchar	,
+  Actor1KnownGroupCode	varchar	,
+  Actor1EthnicCode	varchar	,
+  Actor1Religion1Code	varchar	,
+  Actor1Religion2Code	varchar	,
+  Actor1Type1Code	varchar	,
+  Actor1Type2Code	varchar	,
+  Actor1Type3Code	varchar	,
+  Actor2Code	varchar	,
+  Actor2Name	varchar	,
+  Actor2CountryCode	varchar	,
+  Actor2KnownGroupCode	varchar	,
+  Actor2EthnicCode	varchar	,
+  Actor2Religion1Code	varchar	,
+  Actor2Religion2Code	varchar	,
+  Actor2Type1Code	varchar	,
+  Actor2Type2Code	varchar	,
+  Actor2Type3Code	varchar	,
+  IsRootEvent	varchar	,
+  EventCode	varchar	,
+  EventBaseCode	varchar	,
+  EventRootCode	varchar	,
+  QuadClass	varchar	,
+  GoldsteinScale	varchar	,
+  NumMentions	varchar	,
+  NumSources	varchar	,
+  NumArticles	varchar	,
+  AvgTone	varchar	,
+  Actor1Geo_Type	varchar	,
+  Actor1Geo_FullName	varchar	,
+  Actor1Geo_CountryCode	varchar	,
+  Actor1Geo_ADM1Code	varchar	,
+  Actor1Geo_Lat	varchar	,
+  Actor1Geo_Long	varchar	,
+  Actor1Geo_FeatureID	varchar	,
+  Actor2Geo_Type	varchar	,
+  Actor2Geo_FullName	varchar	,
+  Actor2Geo_CountryCode	varchar	,
+  Actor2Geo_ADM1Code	varchar	,
+  Actor2Geo_Lat	varchar	,
+  Actor2Geo_Long	varchar	,
+  Actor2Geo_FeatureID	varchar	,
+  ActionGeo_Type	varchar	,
+  ActionGeo_FullName	varchar	,
+  ActionGeo_CountryCode	varchar	,
+  ActionGeo_ADM1Code	varchar	,
+  ActionGeo_Lat	varchar	,
+  ActionGeo_Long	varchar	,
+  ActionGeo_FeatureID	varchar	,
+  DATEADDED	varchar	);
+
+###Código de .sh para cargar la base:
+
+for gdelt_file in *.csv
+do
+psql -d gdelt -c "COPY gdelt FROM '/home/jared/big-data/alumnos/jared275/data/$gdelt_file'  WITH DELIMITER E'\t' NULL AS 'NA';"
+done
+
+
+##A partir de aquí hago consultas de la base de datos a través de dplyr.
+
+ 

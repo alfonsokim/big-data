@@ -1,0 +1,15 @@
+Este documeento contiene una reseña breve del contenido de los diferentes archivos del proyecto 2.
+
+1) Reporte de Proyecto 2 - RDBM.pdf: este documento contiene un reporte completo del trabajo realizado en el proyecto 2.
+Contiene la descripción de las fuentes de datos, los procesos ETL ejecutados,la base de datos generada, y los análisis obtenidos de la información.
+
+2) En la carpeta info_origen se encuentra la siguiete información:
+	* caller.sh es el archivo que manda ejecutar los procesos para leer las fuentes de información.
+	* procesador_texto.php es el archivo qu ejecuta los procesos ETL y general los scripts para la carga de información a la base de datos
+	* carpeta data: contiene el extracto de un ejemplo de un archivo fuentes
+
+3)En la carpeta solicitud_webservices se encuentra un archivo python que hace queries a los objetos indexados para full-text search
+
+Nota: la definición de la estructura de la base de datos está contenida en el Reporte.
+
+Nota: no se subió la base de datos por cuestiones de tamaño.
