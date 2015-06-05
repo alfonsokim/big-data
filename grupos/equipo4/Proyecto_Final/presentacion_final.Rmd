@@ -1,0 +1,124 @@
+---
+title: "Proyecto Final"
+author: "Edwin, Jared, Marcos y Augusto"
+date: "05/06/2015"
+output: ioslides_presentation
+---
+
+## Presentación
+
+El propósito de este proyecto es tener un esquema automatizado que tome información de GDELT la almacene y la cargue a nuestras base de datos, posteriormente con la nueva información se haga un reporte en donde de manera resumida se ilustre los acontecimientos que están sucediendo y en que parte del mundo están sucediendo.
+
+## Mapas de información
+
+Presentar un mapa con información de los 5 eventos más populares, donde se pueda ver por país que tan relevantes fueron las noticias.
+```{r,echo=FALSE,message=FALSE, width=14}
+###R
+library(ggplot2)
+library(cshapes)
+world <- cshp(date=as.Date("2008-1-1"))
+world.points <- fortify(world, region='CNTRY_NAME')
+ggplot(world.points, aes(long,lat,group=group)) + geom_polygon()+
+  theme(legend.position="none",axis.text.x = element_blank(),axis.text.y = element_blank(),axis.title.x = element_blank(),axis.title.y = element_blank())
+```
+
+## Proceso
+El proceso a seguir es el de extraer la información de internet, cargarla a la base de Hadoop, hacer analítica desde ahí y posteriormente exportar la información para realizar los mapas desde R.
+```{r,echo=FALSE,message=FALSE, width=14}
+###R
+library(png)
+imagen<-readPNG("flujo.png")
+plot(0, type='n', xlim=0:1, ylim=0:1, axes=F, xlab="",ylab="")
+rasterImage(imagen, 0, 0, 1, 1)
+```
+
+## Primer paso: Extracción
+
+El primer paso es extraer la información de la página de GDELT, para ello vamos a donde sabemos que se almacenan los archivos diaros y extraemos las direcciones de los mismos.
+```{r, eval=FALSE,size=1}
+###R
+library(rvest)
+library(downloader)
+
+archivos <- html(
+  "http://data.gdeltproject.org/events/index.html")%>%
+  html_nodes("a") %>%
+  html_attr("href")
+
+año<-substr(archivos[4],1,4)
+mes<-substr(archivos[4],5,6)
+dia<-substr(archivos[4],7,8)
+```
+
+## Primer paso: Extracción
+
+Identificamos el archivo cuya fecha sea del día anterior, lo extraemos y lo ponemos en la carpeta de gdelt nuevo.
+```{r, eval=FALSE,size=1}
+###R
+fecha<-as.Date(paste(dia,mes,año,sep="/"),"%d/%m/%Y")
+
+if(fecha==Sys.Date()-1){
+  directorio<-"/home/jared/big-data/alumnos/jared275/data/gdelt/"
+  download(paste("http://data.gdeltproject.org/events/",
+                 archivos[4], sep=""),
+           paste(directorio,Sys.Date()-1,".zip",sep=""))
+  unzip(paste(directorio,Sys.Date()-1,".zip",sep=""),
+              exdir=paste(directorio,"nuevos",sep=""))
+}
+```
+
+## Segundo paso: Importación a Hadoop
+
+En este paso utilizamos la informción que cayó a GDELT nuevo y la importamos a Hadoop, específicamente a HDFS y HIVE. Es decir tomamos el CSV le pegamos el encavezado, lo mandamos con kite-dataset a hdfs y hive y luego borramos tanto el CSV como el .zip.
+```{r, eval=FALSE,size=1}
+###CLI
+cat data/data/gdelt/nuevos/*.CSV | \
+  cat data/data/gdelt/nuevos/gdelt_headers.tsv -> \
+  data/data/gdelt/nuevos/diario.CSV
+
+kite-dataset csv-import data/data/gdelt/nuevos/diario.CSV \
+dataset:hdfs:/user/jared27/datasets/gdelt --delimiter "\t"
+
+kite-dataset csv-import data/data/gdelt/nuevos/diario.CSV \
+dataset:hive:gdelt --delimiter "\t"
+
+rm data/data/gdelt/nuevos/*.CSV data/data/gdelt/*.zip
+```
+
+## Tercer paso: Análisis de información
+
+Una vez que se ha cargado la información a Hadoop, utilizamos Impala para identificar los eventos más importantes en el agregado, incluyendo la información más reciente. Tomamos los 5 eventos más importantes y medimos la trascendencia para cada país respecto a dichos eventos.
+```{r, eval=FALSE,size=1}
+###CLI
+impala-shell -B -o data/data/gdelt/reporte.csv \
+--output_delimiter=','-q\
+"select ActionGeo_CountryCode, EventCode, \
+avg(cast(ActionGeo_Lat as float)), avg(cast(ActionGeo_Long as float)),
+count(ActionGeo_CountryCode) from gdelt \
+where EventCode in (select EventCode from gdelt group by EventCode \
+order by count(EventCode) desc limit 5) \
+group by ActionGeo_CountryCode, EventCode;"
+```
+
+## Cuarto paso: Mapas de información
+
+Una vez que tenemos los datos tal como los necesitamos realizamos los mapas de información que para los 5 eventos más populares.
+<img src="/home/jared/big-data/alumnos/jared275/data/gdelt/mapas_conteo_1_.jpg" height="450px" width=800px" />
+
+## Cuarto paso: Mapas de información
+
+<img src="/home/jared/big-data/alumnos/jared275/data/gdelt/mapas_conteo_2_.jpg" height="500px" width=800px" />
+
+## Cuarto paso: Mapas de información
+
+<img src="/home/jared/big-data/alumnos/jared275/data/gdelt/mapas_conteo_3_.jpg" height="500px" width=800px" />
+
+## Cuarto paso: Mapas de información
+
+<img src="/home/jared/big-data/alumnos/jared275/data/gdelt/mapas_conteo_4_.jpg" height="500px" width=800px" />
+
+## Anotaciones
+
+La intención era utilizar flume para automatizar el proceso, pero no pudimos configurarlo para que así fuera, por lo que optamos por utilizar un cron que todos los días hiciera el proceso de descarga e integrara a hdfs y hive. El query que necesitamos para poder hacer los mapas se ejecuta dentro del .sh, **importar_diario.sh** que ejecuta la descarga y la integración a hadoop. Quisimos que los mapas también los hiciera el mismo script, pero tuvimos problemas para instalar rgdal en el R de docker, por lo que el script que crea los mapas lo tenemos afuera de docker **genera_mapas.R**.
+
+Un futuro trabajo es hacer un ranking de noticias, al estilo de ranking de peliculas, en donde consideremos todas las noticias, pero ponderemos más las noticias nuevas sobre las viejas.
