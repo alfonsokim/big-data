@@ -1,0 +1,121 @@
+---
+title: "Presentación - Casos de Negocio"
+author: "Equipo TienenDiez"
+date: "5 de junio de 2015"
+output: html_document
+---
+
+## Introducción
+
+La demanda de procesamiento de flujos en tiempo real está aumentando cada vez más. La razón es que a menudo el procesamiento de grandes volúmenes de datos no es suficiente. Los datos tiene que ser procesados rápidos para que una empresa pueda reaccionar a las condiciones cambiantes del negocio en tiempo real.
+
+Web logs, RFID, sensor networks, social networks, social data, páginas de Internet, Indexado y búsqueda de páginas de internet, detalle de llamadas, datos astronómicos, ciencia, datos genómicos, biogeoquímicos, biológicos, vigilancia (cámas de vídeo, por ejemplo), biogeoquímicos, biológicos, registros médicos, fotografías, vídeo, transacciones bancarias, son ejemplos de lo que se puede procesar.
+
+<br></br>
+
+El siguiente es un esquema general de las herramientas que podemos utilizar.
+(Existen nuevas tendencias como Apache Kafka o combinacion de flume y kafka (Flafka) o el ecosistema que se esta formado en torno a spark)
+
+<center><img  src="/Users/usuario/Dropbox/documents/itam/primavera2015/final-big-data/tono/images/esquema.png" height="800px" width="620px" /></center>
+<center>`Fuente: http://hortonworks.com/`</center>
+
+<br></br>
+
+__Pero ¿Qué es Big data?__
+
+Es un concepto relativo (como todo aquello que está relacionado con el tamaño)
+Cuando la información no viene en formatos estructurados
+Crecimiento acelerado en la adquisición de datos, hardware, alamacenamiento, paralelismo, tiempo de proceso, etc.
+Análisis de datos de varias fuentes distintas
+
+<br></br>
+
+## Objetivo
+
+En el siguiente trabajo utilizamos herramientas para procesamiento de flujo de datos.
+
+- Recolección de documentos GDELT de la página con Flume
+- Importación de documentos de carpetas hacia HDFS - AVRO
+- Uso Hive, Pig y Spark para procesar los datos
+- Importar los datos procesados a R
+- Visualización
+
+<br></br>
+
+## Datos GDELT
+
+GDELT es un proyecto que contiene más de 300 millones de eventos geolocalizados desde 1979 a la fecha. Los datos se basan en informes de noticias de una variedad de fuentes internacionales codificadas usando el sistema de TABARI para registrar los eventos y el uso de software adicional para la ubicación y el tono. Los datos son de libre disposición y actualizadas diariamente.
+
+<br></br>
+
+## Uso potencial de los datos GDELT
+
+La base de GDELT nos puede ofrecer registros de eventos de conflictos a lo largo de toda la república mexicana y del mundo. Como por ejemplo podemos distinguir en el siguiente gráfico las zonas con mayores conflictos registrados.
+
+- la zona fronteriza del norte (Tijuana y Ciudad Juarez)
+- la zona centro (Estado de México y Guerrero)
+- la zona sur (Chiapas y Oaxaca)
+
+<center><img  src="/Users/usuario/Dropbox/proyecto_final/images/m2.png" height="800px" width="620px" /></center>
+
+<br></br>
+<br></br>
+
+## Data Flow
+
+__GDELT__
+
+
+* Obtención
+    + Diariamente, scrappear la página de GDELT para ver si han subido algo nuevo.
+    + Cuando suban algo nuevo, bajar las bases nuevas (HTML).
+* Limpieza
+    + Generar el CSV a partir del HTML.
+    + Limpiar y validar el CSV (bash).
+* Carga
+    + Hadoop
+        - Usar un spoolDir de Flume para subirlo
+	    - Subir al HDFS y agregarlo al dataset en formato Avro.
+* Orquestación
+    + Luigi
+        * Analítica
+            - Hive
+            - Pig
+        * Manipulación
+            + Exportamos resultados
+* Visualización
+    + Shiny (series de tiempo) o Markdown.
+
+<center><img  src="/Users/usuario/Dropbox/documents/itam/primavera2015/final-big-data/tono/images/proceso.png" height="800px" width="620px" /></center>
+
+<br></br>
+
+
+## Resultados (visualizaciones)
+
+<br></br>
+
+__Registro de conflictos en México__
+
+<center><img  src="/Users/usuario/Dropbox/Documents/ITAM/primavera2015/final-big-data/tono/images/resultados.png" height="800px" width="620px" /></center>
+
+<br></br>
+
+## Posibles Neogicios con la tenología desarrollada. (Usos potenciales)
+
+<br></br>
+
+Un uso potencial es utilizar la tecnología desarrollado para eventos de promoción de una marca.  Como por ejemplo procesar información de twitter en tiempo real en conciertos para usos mercadológicos.
+
+<br></br>
+
+<center><img  src="/Users/usuario/Dropbox/Documents/ITAM/primavera2015/final-big-data/tono/images/twitter.png" height="800px" width="620px" /></center>
+
+<br></br>
+
+Otro uso potencial es procesar la percepción ciudadana el día de las elecciones a nivel nacional con base en redes sociales y blogs.
+
+<br></br>
+
+<center><img  src="/Users/usuario/Dropbox/Documents/ITAM/primavera2015/final-big-data/tono/images/elec.png" height="800px" width="620px" /></center>
+
