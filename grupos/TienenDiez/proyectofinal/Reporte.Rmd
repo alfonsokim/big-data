@@ -1,0 +1,455 @@
+---
+title: "Reporte - Proyecto Final Métodos de Gran Escala"
+author: "Equipo TienenDiez"
+date: "3 de junio de 2015"
+output:
+  html_document:
+    highlight: tango
+    theme: cerulean
+---
+
+## Introducción
+
+La demanda de procesamiento de flujos en tiempo real está aumentando cada vez más. La razón es que a menudo el procesamiento de grandes volúmenes de datos no es suficiente. Los datos tiene que ser procesados rápidos para que una empresa pueda reaccionar a las condiciones cambiantes del negocio en tiempo real.
+
+Web logs, RFID, sensor networks, social networks, social data, páginas de Internet, Indexado y búsqueda de páginas de internet, detalle de llamadas, datos astronómicos, ciencia, datos genómicos, biogeoquímicos, biológicos, vigilancia (cámas de vídeo, por ejemplo), biogeoquímicos, biológicos, registros médicos, fotografías, vídeo, transacciones bancarias, son ejemplos de lo que se puede procesar.
+
+<br></br>
+
+El siguiente es un esquema general de las herramientas que podemos utilizar.
+(Existen nuevas tendencias como Apache Kafka o combinacion de flume y kafka (Flafka) o el ecosistema que se esta formado en torno a spark)
+
+<center><img  src="/Users/usuario/Dropbox/documents/itam/primavera2015/final-big-data/tono/images/esquema.png" height="800px" width="620px" /></center>
+<center>`Fuente: http://hortonworks.com/`</center>
+
+<br></br>
+
+__Pero ¿Qué es Big data?__
+
+Es un concepto relativo (como todo aquello que está relacionado con el tamaño)
+Cuando la información no viene en formatos estructurados
+Crecimiento acelerado en la adquisición de datos, hardware, alamacenamiento, paralelismo, tiempo de proceso, etc.
+Análisis de datos de varias fuentes distintas
+
+<br></br>
+
+## Objetivo
+
+En el siguiente trabajo utilizamos herramientas para procesamiento de flujo de datos.
+
+- Recolección de documentos GDELT de la página con Flume
+- Importación de documentos de carpetas hacia HDFS - AVRO
+- Uso Hive, Pig y Spark para procesar los datos
+- Importar los datos procesados a R
+- Visualización
+
+<br></br>
+
+## Datos GDELT
+
+GDELT es un proyecto que contiene más de 300 millones de eventos geolocalizados desde 1979 a la fecha. Los datos se basan en informes de noticias de una variedad de fuentes internacionales codificadas usando el sistema de TABARI para registrar los eventos y el uso de software adicional para la ubicación y el tono. Los datos son de libre disposición y actualizadas diariamente.
+
+<br></br>
+
+## Uso potencial de los datos GDELT
+
+La base de GDELT nos puede ofrecer registros de eventos de conflictos a lo largo de toda la república mexicana y del mundo. Como por ejemplo podemos distinguir en el siguiente gráfico las zonas con mayores conflictos registrados.
+
+- la zona fronteriza del norte (Tijuana y Ciudad Juarez)
+- la zona centro (Estado de México y Guerrero)
+- la zona sur (Chiapas y Oaxaca)
+
+<center><img  src="/Users/usuario/Dropbox/proyecto_final/images/m2.png" height="800px" width="620px" /></center>
+
+<br></br>
+<br></br>
+
+## Data Flow
+
+__GDELT__
+
+
+* Obtención
+    + Diariamente, scrappear la página de GDELT para ver si han subido algo nuevo.
+    + Cuando suban algo nuevo, bajar las bases nuevas (HTML).
+* Limpieza
+    + Generar el CSV a partir del HTML.
+    + Limpiar y validar el CSV (bash).
+* Carga
+    + Hadoop
+        - Usar un spoolDir de Flume para subirlo
+	    - Subir al HDFS y agregarlo al dataset en formato Avro.
+* Orquestación
+    + Luigi
+        * Analítica
+            - Hive
+            - Pig
+        * Manipulación
+            + Exportamos resultados
+* Visualización
+    + Shiny (series de tiempo) o Markdown.
+
+<center><img  src="/Users/usuario/Dropbox/documents/itam/primavera2015/final-big-data/tono/images/proceso.png" height="800px" width="620px" /></center>
+
+<br></br>
+
+## Ejecución
+
+
+```{r, eval=FALSE }
+
+# Crear la instancia
+docker run -ti --name hadoop-pseudo-proyecto \
+	   -v /Users/Felipe/data-science/final-big-data:/home/itam/localhost \
+	   -p 2122:2122 -p 2181:2181 -p 39534:39534 -p 9000:9000 \
+	   -p 50070:50070 -p 50010:50010 -p 50020:50020 -p 50075:50075 \
+	   -p 50090:50090 -p 8030:8030 -p 8031:8031 -p 8032:8032 \
+	   -p 8033:8033 -p 8088:8088 -p 8040:8040 -p 8042:8042 \
+	   -p 13562:13562 -p 47784:47784 -p 10020:10020 -p 19888:19888 \
+	   -p 8000:8000 -p 9999:9999 \
+	   --net=host \
+	   nanounanue/docker-hadoop
+	   
+
+# Cambiar al usuario itam
+su itam
+
+# Para tener el comando man
+sudo apt-get install man-db
+
+# Necesario para usar Flume
+sudo ln -s /usr/lib/kite/kite-morphlines-* /usr/lib/flume-ng/lib
+sudo ln -s /usr/lib/kite/lib/metrics* /usr/lib/flume-ng/lib
+sudo ln -s /usr/lib/kite/lib/config-1.0.2.jar /usr/lib/flume-ng/lib
+sudo ln -s /usr/lib/kite/lib/Saxon-HE-9.5.1-5.jar /usr/lib/flume-ng/lib
+sudo ln -s /usr/lib/kite/lib/tika-* /usr/lib/flume-ng/lib
+
+# Correr el contenedor si ya se había creado
+docker start -ia hadoop-pseudo-proyecto
+
+#---------------------------------------------------------------------------------------------------------------
+# Creamos las carpetas
+sudo -u hdfs hadoop fs -mkdir /user/itam
+sudo -u hdfs hadoop fs -chown itam:itam /user/itam
+
+#---------------------------------------------------------------------------------------------------------------
+# Generar el esquema de los datos
+
+curl http://gdeltproject.org/data/lookups/CSV.header.dailyupdates.txt > data/gdelt_headers.tsv
+unzip -p data/raw/20130412.export.CSV.zip | cat data/gdelt_headers.tsv - > data/schema/20130412.export.CSV
+kite-dataset csv-schema data/schema/20130412.export.CSV --class GDELT --delimiter "\t" -o data/schema/gdelt_raw20130412.avsc
+
+
+# Crear el dataset en el hive metastore.
+
+kite-dataset create dataset:hive:gdelt --schema data/schema/gdelt.avsc 
+
+# El dataset queda en: /user/hive/warehouse/gdelt
+hadoop fs -ls -R /user/hive
+
+#---------------------------------------------------------------------------------------------------------------
+
+# Probamos importar unos datos
+#unzip -p data/raw/20130412.export.CSV.zip | cat data/gdelt_headers.tsv - > data/spool/20130412.export.CSV
+#kite-dataset csv-import data/spool/20130412.export.CSV dataset:hive:gdelt --delimiter "\t"
+#hadoop fs -ls -R /user/hive
+
+# Podemos ver los datos en HIVE
+#beeline -u jdbc:hive2://localhost:10000
+#show tables;
+#select * from gdelt limit 10;
+
+# Borramos el dataset de pruebas (hay que crearlo de nuevo)
+#kite-dataset delete dataset:hive:gdelt
+
+### END NOT RUN ###
+
+#---------------------------------------------------------------------------------------------------------------
+
+# Corremos el agente de flume
+# NOTA: Preferímos usar un sink en Avro directo al HDFS.
+
+flume-ng agent -n GDELTAgent -Xmx300m --conf flume -f flume/gdelt-agent.conf
+
+# Abrir otra conexión al contenedor
+docker exec -it hadoop-pseudo-proyecto /bin/zsh
+su itam
+
+# Correr el código que baja los datos y los mete al spoolDir
+./process_background.sh data/raw data/spool 5
+
+```
+
+
+#### Flume agent (gdelt-agent.conf)
+
+```{r, eval=FALSE}
+# Componentes
+GDELTAgent.sources = GDELTDir
+GDELTAgent.channels = archivo
+GDELTAgent.sinks = GDELTKiteDS
+
+# Canal
+#GDELTAgent.channels.archivo.type = file
+#GDELTAgent.channels.archivo.checkpointDir = /home/itam/localhost/playground/data/spool/log/checkpoint/
+#GDELTAgent.channels.archivo.dataDirs = /home/itam/localhost/playground/data/spool/log/data/
+#GDELTAgent.channels.archivo.checkpointInterval = 5000
+#GDELTAgent.channels.archivo.capacity = 20
+#GDELTAgent.channels.archivo.transactionCapacity = 10
+
+GDELTAgent.channels.archivo.type = memory
+GDELTAgent.channels.archivo.capacity = 10000000
+GDELTAgent.channels.archivo.transactionCapacity = 1000000
+#GDELTAgent.channels.archivo.byteCapacity = 1000000
+
+# Fuente
+GDELTAgent.sources.GDELTDir.type = spooldir
+GDELTAgent.sources.GDELTDir.channels = archivo
+GDELTAgent.sources.GDELTDir.spoolDir = /home/itam/localhost/playground/data/spool
+GDELTAgent.sources.GDELTDir.fileHeader = true
+GDELTAgent.sources.GDELTDir.deletePolicy = immediate
+
+# Interceptor
+GDELTAgent.sources.GDELTDir.interceptors = attach-schema morphline
+
+GDELTAgent.sources.GDELTDir.interceptors.attach-schema.type = static
+GDELTAgent.sources.GDELTDir.interceptors.attach-schema.key = flume.avro.schema.url
+GDELTAgent.sources.GDELTDir.interceptors.attach-schema.value = file:/home/itam/localhost/playground/data/schema/gdelt.avsc
+
+GDELTAgent.sources.GDELTDir.interceptors.morphline.type = org.apache.flume.sink.solr.morphline.MorphlineInterceptor$Builder
+GDELTAgent.sources.GDELTDir.interceptors.morphline.morphlineFile = /home/itam/localhost/playground/flume/morphline.conf
+GDELTAgent.sources.GDELTDir.interceptors.morphline.morphlineId = convertGDELTFileToAvro
+
+
+# Sumidero
+GDELTAgent.sinks.GDELTKiteDS.type = hdfs
+GDELTAgent.sinks.GDELTKiteDS.channel = archivo
+GDELTAgent.sinks.GDELTKiteDS.hdfs.path = /user/hive/warehouse/gdelt
+GDELTAgent.sinks.GDELTKiteDS.hdfs.fileType = DataStream
+GDELTAgent.sinks.GDELTKiteDS.hdfs.rollInterval = 5
+GDELTAgent.sinks.GDELTKiteDS.hdfs.batchSize = 100000
+GDELTAgent.sinks.GDELTKiteDS.hdfs.filePrefix = GDELTData
+GDELTAgent.sinks.GDELTKiteDS.hdfs.fileSuffix = .avro
+GDELTAgent.sinks.GDELTKiteDS.hdfs.writeFormat = Avro
+GDELTAgent.sinks.GDELTKiteDS.hdfs.rollSize = 0
+GDELTAgent.sinks.GDELTKiteDS.hdfs.rollCount = 1000000
+GDELTAgent.sinks.GDELTKiteDS.serializer = org.apache.flume.sink.hdfs.AvroEventSerializer$Builder
+#GDELTAgent.sinks.GDELTKiteDS.type = org.apache.flume.sink.kite.DatasetSink
+#GDELTAgent.sinks.GDELTKiteDS.channel = archivo
+#GDELTAgent.sinks.GDELTKiteDS.kite.dataset.uri = dataset:hive://0.0.0.0:9083/gdelt
+#GDELTAgent.sinks.GDELTKiteDS.kite.dataset.name = gdelt
+#GDELTAgent.sinks.GDELTKiteDS.kite.batchSize = 100
+#GDELTAgent.sinks.GDELTKiteDS.kite.rollInterval = 5
+
+```
+
+
+#### Orquestación LUIGI (luigi-workflow.py)
+
+```python
+
+import random as rnd
+import time
+import os
+import luigi
+
+
+class MainTask(luigi.Task):
+    def complete(self):
+	return False 
+    
+    def output(self):
+        return luigi.LocalTarget('tmp/main_task_.txt')
+
+    def requires(self):
+	child_tasks = {"hive_query_1":1,"hive_query_2":2,"hive_query_3":3}
+	tasks = []
+        for item in child_tasks:
+                print "Starting with task at:",item
+                tasks.append(Export(child_tasks[item]))
+        return tasks
+
+    def run(self):
+	
+        # esto de aqui abajo es por el comentario (***)
+        with self.output().open('w') as f:
+            f.write("main task done...")
+
+
+
+class Export(luigi.Task):
+    rseed = luigi.IntParameter(default=1)
+
+    def complete(self):
+        return False
+
+    def output(self):
+        """ (***)
+	luigi.Task.output es una funcion que escribe en un archivo local como 
+	acknowledgement que la tarea termino. Si este archivo existe, la tarea
+	ya no se ejecuta.
+	"""
+	return luigi.LocalTarget('/tmp/log_hive_task_%s.txt' % self.rseed)
+
+
+    def requires(self): # esta tarea no tiene dependencias en otras
+	return None
+	
+    def run(self):
+	if self.rseed == 1:
+		query = "hive -e 'set hive.cli.print.header=true; SELECT MonthYear, ActionGeo_Long, ActionGeo_Lat, ActionGeo_FullName FROM gdelt limit 1000' | sed 's/[\t]/,/g' > data/map_hive_%d.csv"%self.rseed
+	elif self.rseed == 2: # second query
+		query = """hive -e "SELECT MonthYear, ActionGeo_Long, ActionGeo_Lat, ActionGeo_FullName,count(*) c_mx FROM gdelt WHERE EventRootCode = '19' AND ActionGeo_CountryCode = 'MX' GROUP BY MonthYear, ActionGeo_Long, ActionGeo_Lat, ActionGeo_FullName ORDER BY MonthYear" | sed 's/[\t]/,/g'  > /data/conflictos.csv"""
+	elif self.rseed == 3:
+		query = """hive -e "SELECT Year, Actor1Name, Actor2Name, Count FROM (SELECT Actor1Name, Actor2Name, Year, COUNT(*) Count, RANK() OVER(PARTITION BY YEAR ORDER BY Count DESC) rank FROM SELECT Actor1Name, Actor2Name,  Year FROM gdelt WHERE Actor1Name < Actor2Name and Actor1CountryCode != '' and Actor2CountryCode != '' and Actor1CountryCode!=Actor2CountryCode and ActionGeo_CountryCode='MX'), ( SELECT Actor2Name Actor1Name, Actor1Name Actor2Name, Year FROM gdelt WHERE Actor1Name > Actor2Name  and Actor1CountryCode != '' and Actor2CountryCode != '' and Actor1CountryCode!= Actor2CountryCode and ActionGeo_CountryCode='MX'), WHERE Actor1Name IS NOT null AND Actor2Name IS NOT null GROUP EACH BY 1, 2, 3 HAVING Count > 100 ) WHERE rank=1 ORDER BY Year" | sed 's/[\t]/,/g'  > /data/actores.csv"""
+	output = os.popen(query)
+	
+	# esto de aqui abajo es por el comentario (***)
+        with self.output().open('w') as f:
+            f.write(output.read())
+
+
+if __name__ == '__main__':
+    luigi.run(main_task_cls=MainTask)
+
+
+```
+
+
+<br></br>
+
+## Resultados (visualizaciones)
+
+<br></br>
+
+__Registro de conflictos en México__
+
+<center><img  src="/Users/usuario/Dropbox/Documents/ITAM/primavera2015/final-big-data/tono/images/mapas.png" height="800px" width="620px" /></center>
+
+<br></br>
+
+__Eventos en México en el tiempo (eventos en mexico entre total de ese periodo)__
+<center><img  src="/Users/usuario/Dropbox/Documents/ITAM/primavera2015/final-big-data/tono/images/mex.png" height="800px" width="620px" /></center>
+
+<br></br>
+
+__Eventos que se relacionan con el Actor Mexico__
+
+| Year|Actor1Name |Actor2Name    | Count|
+|----:|:----------|:-------------|-----:|
+| 1980|MEXICO     |UNITED STATES |   118|
+| 1981|MEXICO     |UNITED STATES |   179|
+| 1982|MEXICO     |UNITED STATES |   225|
+| 1983|MEXICO     |UNITED STATES |   326|
+| 1984|MEXICO     |UNITED STATES |   291|
+| 1985|MEXICO     |UNITED STATES |   433|
+| 1986|MEXICO     |UNITED STATES |   334|
+| 1987|MEXICO     |UNITED STATES |   224|
+| 1988|MEXICO     |UNITED STATES |   267|
+| 1989|MEXICO     |UNITED STATES |   213|
+
+<br></br>
+
+## ANEXOS
+
+__Analítica PIG__
+
+```{r , eval=FALSE}
+
+PIG
+
+## creamos hdfs.
+
+kite-dataset create dataset:hdfs:/user/itam/datasets/gdelt --schema data/gdelt.avsc
+
+kite-dataset csv-import data/20130412.export.CSV dataset:hdfs:/user/itam/datasets/gdelt --delimiter "\t"
+
+## entramos grunt
+
+pig -useHCatalog
+
+### CARGAMOS avro
+
+gdelt = LOAD 'datasets/gdelt' USING org.apache.pig.piggybank.storage.avro.AvroStorage();
+
+### visualizando la tabla de gdelt
+
+head = LIMIT gdelt 5;
+DUMP head; 
+
+#guardamos TEORICO. NO se ha probado.
+store head into '/user/itam/data/head' using PigStorage('\t','-schema');
+
+
+##########################################################
+### visualizamos Actores distintos.
+
+Actor1Name = DISTINCT (FOREACH gdelt GENERATE Actor1Name);
+DUMP Actor1Name;
+
+
+### Visualizamos los países
+
+gdelt2 = FILTER gdelt by ActionGeo_CountryCode != '';
+country = DISTINCT (FOREACH gdelt2 GENERATE ActionGeo_CountryCode);
+DUMP country;
+
+
+### Contamos los eventos por actor principal pais.
+
+gdelt_grp = GROUP gdelt by Actor1CountryCode;
+country = FOREACH gdelt GENERATE Actor1CountryCode;
+gdelt_cnt = FOREACH gdelt_grp GENERATE GROUP AS country, COUNT(gdelt) as count;
+DUMP gdelt_cnt;
+
+
+### Contar el total de lineas
+### SELECT COUNT(*) FROM gdelt;
+
+gdelt_grp = GROUP gdelt all;
+gdelt_cnt = FOREACH gdelt_grp GENERATE COUNT(gdelt);
+DUMP gdelt_cnt;
+
+### Contar los distitntos EventCode  (clasificacion del evento)
+### SELECT COUNT(DISTINCT EventCode) FROM gdelt;
+
+event = DISTINCT(FOREACH gdelt GENERATE EventCode);
+event_grp = GROUP event all;
+event_cnt = FOREACH event_grp GENERATE COUNT(event);
+DUMP event_cnt;
+
+```
+
+<br> </br>
+
+__Analítica pyspark__
+
+
+```{r, eval= FALSE}
+
+### pyspark
+
+
+import csv
+from io import StringIO
+
+def load_tsv(archivo):
+    return csv.reader(StringIO(archivo[1]), delimiter='\t')
+
+
+####  Actor1Code
+
+gdelt = sc.textFile("hdfs://localhost/user/itam/data/20130412.export.CSV").flatMap(load_tsv)
+gdelt.take(3)[5]
+
+#### Contamos el numero diferente de eventos
+#### gdelt = sc.textFile("hdfs://localhost/user/itam/data/20130412.export.CSV")
+
+gdelt.map(lambda line: (line.split('\t')[22]))\
+.distinct()\
+.count()
+
+### contamos registro
+gdelt.count()
+```
+
