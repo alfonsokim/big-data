@@ -1,0 +1,541 @@
+---
+title: "Proyecto_2"
+author: "Carlos Jared Romero Reyes"
+date: "27/05/2015"
+output: html_document
+---
+
+##Base UFO
+
+###Cargar UFO a SQL
+
+Este proceso es relativamente sencillo para la base de UFOS, ya que al momento de descargar los datos de internet solo te quedas con un solo archivo el cual con crear la tabla y un copy la cargas rápido a SQL.
+
+```{r,warning=FALSE,message=FALSE,eval=FALSE}
+create table ufos (
+fecha varchar,
+fecha2 varchar,
+ciudad varchar,
+estado varchar,
+figura varchar,
+duracion varchar,
+descripcion varchar,
+reportado varchar);
+
+\copy ufos from '/home/itam/proyectos/ufos/UFO_OK.tsv' with delimiter E'|' NULL AS 'na';
+
+alter table ufos alter column fecha type date using to_date(fecha,'MM-DD-YY');
+```
+
+####Primeros avistamientos por estado
+
+```{r,warning=FALSE,message=FALSE,eval=FALSE}
+###Primer avistamiento por estado
+select min(fecha), estado from ufos group by estado order by estado;
+
+    min     | estado 
+------------+--------
+ 1970-01-01 | 
+ 1970-04-15 | AB
+ 1972-08-30 | AK
+ 1970-03-30 | AL
+ 1970-10-01 | AR
+ 1970-04-15 | AZ
+ 1970-03-15 | BC
+ 1970-01-15 | CA
+ 1970-01-24 | CO
+ 1970-06-15 | CT
+ 1992-04-15 | Ca
+ 1974-06-06 | DC
+ 1972-05-01 | DE
+ 1970-01-16 | FL
+ 1996-04-28 | Fl
+ 1970-02-20 | GA
+ 1970-06-06 | HI
+ 1970-06-01 | IA
+
+```
+
+
+####Primeros avistamientos por figura
+
+```{r,warning=FALSE,message=FALSE,eval=FALSE}
+###Primer avistamiento por figura
+select min(fecha), estado from ufos group by figura order by figura;
+
+    min     |   figura   
+------------+------------
+ 1970-02-15 | 
+ 1970-05-05 | Changing
+ 1970-09-15 | Chevron
+ 1970-01-24 | Cigar
+ 1970-02-20 | Circle
+ 1970-06-30 | Cone
+ 1997-03-22 | Crescent
+ 1971-08-11 | Cross
+ 1970-01-15 | Cylinder
+ 1974-07-18 | Delta
+ 1970-09-15 | Diamond
+ 1970-01-01 | Disk
+ 1996-03-15 | Dome
+ 1970-01-20 | Egg
+ 1970-07-22 | Fireball
+```
+
+####Promedio de avistamientos por mes y año
+
+```{r,warning=FALSE,message=FALSE,eval=FALSE}
+###Promedio de avistamientos por mes y año
+
+select avg(cuenta), mes
+from(select count(fecha) cuenta,extract(year from fecha) anio, 
+extract(month from fecha) mes, estado
+from ufos
+group by extract(year from fecha), 
+extract (month from fecha), estado) as base
+group by (mes)
+order by (mes);
+
+        avg         | mes 
+--------------------+-----
+ 5.6103476151980598 |   1
+ 4.9247121346324181 |   2
+ 5.4217067108533554 |   3
+ 5.1141304347826087 |   4
+ 4.8512635379061372 |   5
+ 4.6379944802207912 |   6
+ 6.1336161187698834 |   7
+ 5.9702346880366342 |   8
+ 6.0897689768976898 |   9
+ 5.9026143790849673 |  10
+ 6.0802422407267222 |  11
+ 5.6908333333333333 |  12
+
+
+select avg(cuenta) promedio, anio
+from(select count(fecha) cuenta,extract(year from fecha) anio, 
+extract(month from fecha) mes, estado
+from ufos
+group by extract(year from fecha), 
+extract (month from fecha), estado) as base
+group by (anio)
+order by (anio);
+
+          avg           | anio 
+------------------------+------
+     1.4871794871794872 | 1970
+     1.3921568627450980 | 1971
+     1.5781250000000000 | 1972
+     1.5808383233532934 | 1973
+     1.6524064171122995 | 1974
+     1.7766990291262136 | 1975
+     1.7771739130434783 | 1976
+     1.7231638418079096 | 1977
+     1.9693877551020408 | 1978
+     1.7654320987654321 | 1979
+     1.6250000000000000 | 1980
+     1.5426356589147287 | 1981
+     1.5620437956204380 | 1982
+
+```
+
+
+####Promedio y varianza por estado.
+
+```{r,warning=FALSE,message=FALSE,eval=FALSE}
+
+select avg(cuenta) promedio, estado
+from(select count(fecha) cuenta,extract(year from fecha) anio, 
+extract(month from fecha) mes, estado
+from ufos
+group by extract(year from fecha), 
+extract (month from fecha), estado) as base
+group by (estado)
+order by (promedio) desc
+limit 10;
+
+      promedio       | estado 
+---------------------+--------
+ 18.9259259259259259 | CA
+ 13.4861591695501730 | 
+ 11.6247191011235955 | FL
+ 11.5852534562211982 | WA
+  9.2005649717514124 | AZ
+  8.9065040650406504 | TX
+  7.7979797979797980 | NY
+  7.6750000000000000 | IL
+  7.3729603729603730 | PA
+  7.0578313253012048 | OH
+(10 rows)
+
+
+###Estado con mayor varianza
+
+select stddev(cuenta) desviacion, estado
+from(select count(fecha) cuenta,extract(year from fecha) anio, 
+extract(month from fecha) mes, estado
+from ufos
+group by extract(year from fecha), 
+extract (month from fecha), estado) as base
+group by (estado)
+order by (desviacion) desc
+limit 10;
+
+     desviacion      | estado 
+---------------------+--------
+                     | Ca
+                     | VI
+ 23.2855556245333992 | CA
+ 15.7433042229631767 | 
+ 14.6629034962789133 | FL
+ 13.0119278750568268 | WA
+  9.6515354652537361 | TX
+  9.4335494187814312 | IL
+  9.3434033517730056 | NY
+  9.1962414026243307 | PA
+(10 rows)
+```
+
+
+###Análisis espacio temporal
+
+Par realizar los siguientes análisis, exporte un query en csv para leerlo en R.
+
+```{r,warning=FALSE,message=FALSE,eval=FALSE}
+copy (select count(fecha) cuenta,fecha, estado
+from ufos
+group by fecha,estado)
+to '/home/itam/proyectos/ufos/linea_tiempo.csv' delimiter ',' csv header;
+```
+
+Una vez filtrados los datos en Postgres los importo para analziarlos en R (la carpeta de docker está conectada con la mía de big-data).
+
+```{r,warning=FALSE,message=FALSE}
+library(dplyr)
+library(ggvis)
+
+datos<-read.csv("/home/jared/big-data/alumnos/jared275/data/ufos/linea_tiempo.csv")
+
+##Corrijo un poco la fecha
+datos$años<-as.numeric(substr(datos$fecha,1,4))
+datos$años[datos$años>2015]<-datos$años[datos$años>2015]-100
+datos$mes<-substr(datos$fecha,6,7)
+datos$trim<-"trim_1"
+datos$trim[datos$mes %in% c("04","05","06")]<-"trim_2"
+datos$trim[datos$mes %in% c("07","08","09")]<-"trim_3"
+datos$trim[datos$mes %in% c("10","11","12")]<-"trim_4"
+```
+
+Dividimos los datos en trimestres para investigar algun patrón en el tiempo de los avistamientos y notamos que el tercer trimestre es casi siempre el momento en donde más ovnis se ven, por otra parte el trimestre 1 es el periodo del año en donde menos pasan.
+
+```{r,warning=FALSE,message=FALSE}
+datos%>%
+  group_by(años,mes)%>%
+  summarise(conteo=n())%>%
+  arrange(años,mes)%>%
+  ungroup()%>%
+  mutate(fecha=paste(años,mes,"01",sep="-"),fecha=as.Date(fecha,"%Y-%m-%d"))%>%
+  ggvis(~fecha,~conteo)%>%
+  layer_lines()
+
+datos%>%
+  group_by(años,trim)%>%
+  summarise(conteo=n())%>%
+  arrange(años,trim)%>%
+  ungroup()%>%
+  mutate(fecha=paste(años,substr(trim,6,6),"01",sep="-"),fecha=as.Date(fecha,"%Y-%m-%d"))%>%
+  ggvis(~fecha,~conteo)%>%
+  layer_points(fill=~trim)%>%
+  layer_lines()
+```
+
+Para matchear el estado con su nombre bajo una tabla de wikipedia.
+
+```{r,warning=FALSE,message=FALSE}
+library(rvest)
+wiki<-html("http://en.wikipedia.org/wiki/List_of_U.S._state_abbreviations")
+
+tabla<-wiki%>%
+  html_nodes(xpath='//*[@id="mw-content-text"]/table[1]')%>%
+  html_table()
+tabla<-tabla[[1]]
+
+tabla<-tabla[1:53,c(1,4)]
+names(tabla)[2]<-"estado"
+
+tabla_2<-left_join(tabla,datos)
+tabla_2<-tabla_2[!is.na(tabla_2$fecha),]
+tabla_2$Region<-tolower(tabla_2$Region)
+head(tabla_2)
+
+```
+
+California concentra gran parte de los avistamientos pero si la omitimos vemos que Texas, Florida , Pensilvania y Wahington también concentran gran parte de los avistamientos a lo largo de la historia. Sin embargo, no parece que exista una correlación espacial en los avistamientos, ninguno de estos se encuentran cerca.
+
+
+```{r,warning=FALSE,message=FALSE}
+por_estado<-tabla_2%>%
+  group_by(Region,años)%>%
+  summarise(conteo=n())%>%
+  mutate(porcentaje=conteo/sum(conteo), region=Region)
+
+map_data = ggplot2::map_data("state")
+
+por_estado_mapa<-left_join(map_data,por_estado)
+por_estado_mapa$años<-as.integer(por_estado_mapa$años)
+etiquetas<-group_by(map_data,region)%>%
+  filter(rank(region,ties.method="first")==8)
+
+por_estado_mapa %>% 
+  group_by(region)%>%
+  mutate(conteo_tot=mean(conteo))%>%
+  select(long,lat,group,order,region,conteo_tot)%>%
+  unique()%>%
+  ungroup()%>%
+  group_by(group) %>% 
+  ggvis(x = ~long, y = ~lat) %>% 
+  layer_paths(fill = ~desc(conteo_tot)) %>%
+  layer_text(data=etiquetas,x = ~long, y = ~lat, text:=~region, fill:="white",
+             fontSize:=12)%>%
+  hide_legend(c("fill","stroke"))
+
+por_estado_mapa %>% 
+  filter(region!="california")%>%
+  group_by(region)%>%
+  mutate(conteo_tot=mean(conteo))%>%
+  select(long,lat,group,order,region,conteo_tot)%>%
+  unique()%>%
+  ungroup()%>%
+  group_by(group) %>% 
+  ggvis(x = ~long, y = ~lat) %>% 
+  layer_paths(fill = ~desc(conteo_tot)) %>%
+  layer_text(data=etiquetas,x = ~long, y = ~lat, text:=~region, fill:="white",
+             fontSize:=12)%>%
+  hide_legend(c("fill","stroke"))
+
+```
+
+
+Ahora para ver de manera un poco rudimentaria los avistamientos por estado, y ubicar si en algun momento hubo una aglomeración de avistamientos, hacemos mapas para los últimos 10 años pero vemos que se conservan las mismas proporciones.
+
+```{r,warning=FALSE,message=FALSE}
+mapas<-lapply(1:10, function(i){
+  por_estado_mapa %>%
+    filter(años==2005+i)%>%
+    group_by(group) %>% 
+    ggvis(x = ~long, y = ~lat) %>% 
+    layer_paths(fill = ~desc(conteo)) %>%
+    layer_text(data=etiquetas,x = ~long, y = ~lat, text:=~region, fill:="white",
+               fontSize:=12)%>%
+    hide_legend(c("fill"))%>%
+    add_axis("x", title =paste("año",2005+i))
+})
+mapas[[1]]
+mapas[[2]]
+mapas[[3]]
+mapas[[4]]
+mapas[[5]]
+mapas[[6]]
+mapas[[7]]
+mapas[[8]]
+mapas[[9]]
+mapas[[10]]
+```
+
+
+##Base GDELT
+
+###Cargar GDELT a SQL
+
+La base de gdelt tiene mas sentido tenerla en una base de datos como SQL, ya que es suficientemente grande como para no poderla cargar dentro de R. El proceso de carga a la base de datos es también un poco más complicado que la de UFO. Se creó la tabla con cada uno de los campos, los nombres se obtuvieron de la págnia, y solo se cargaron los datos hasta marzo de 2013, que es el histórico que se encuentra homologado, a partir de esa fecha hay un campo nuevo en la base y para los fines de este trabajo nos quedamos hasta 2013.
+
+Una vez creados los datos corremos un script que de manera iterativa va cargando la base.
+
+```{r,warning=FALSE,message=FALSE,eval=FALSE}
+for gdelt_file in *.csv
+do
+psql -d gdelt -c "COPY gdelt FROM '/home/jared/big-data/alumnos/jared275/data/$gdelt_file'  WITH DELIMITER E'\t' NULL AS 'NA';"
+done
+```
+
+###Conectarse con dplyr.
+
+Dado que nos agrada más R para hacer análisis, hemos decidido que utilizaremos las herramientas de dplyr para conectarnos con nuestra base de datos, hacer los querys que queramos e importar la información para analizarla desde R.
+
+Algunas buenas referencias que hablan de esto las encontramos en este [link](http://benporter.io/blog/r/dplyr-with-postgresql) y en [este](http://cran.r-project.org/web/packages/dplyr/vignettes/databases.html).
+
+Debemos mencionar que para que este proceso fuera más fácil se instalo la base de datos en mi sistema operativo, no en el de docker.
+
+```{r,warning=FALSE,message=FALSE}
+library(dplyr)
+library(RPostgreSQL)
+
+tabla_postgres <- tbl(src_postgres(dbname="gdelt"),
+                      ,from="gdelt")
+
+colnames(tabla_postgres)
+```
+
+Para darnos una idea de el número de filas que tiene la base, hacemos lo siguiente dentro de la base de datos:
+
+```{r,warning=FALSE,message=FALSE,eval=FALSE}
+SELECT reltuples::bigint AS estimate
+FROM   pg_class
+WHERE  oid = 'gdelt'::regclass;
+
+estimate  
+-----------
+ 212908960
+(1 row)
+
+```
+
+Como solo vamos a utilizar los datos de México hacemos un filtro para estos y nos quedamos solo con las variables que nos interesan. Incluso hacer el query en dplyr nos puede traducir el código para hacerlo en PSQL.
+
+```{r,warning=FALSE}
+noticias_mex<-tabla_postgres%>%
+  select(sqldate,monthyear,actor1name,actor1code,actor1countrycode,actor1type1code,
+         actor1geo_fullname,actor2name,actor2code,actor2countrycode,
+         actor2type1code,eventcode,actor2geo_fullname,avgtone,actiongeo_lat,
+         actiongeo_long,actiongeo_countrycode)%>%
+  filter(actiongeo_countrycode=="MX")
+
+show_query(noticias_mex)
+```
+
+Finalmente recolectamos el query y lo guardamos como un RDS.
+
+```{r,warning=FALSE,message=FALSE,eval=FALSE}
+base_bn<-collect(noticias_mex)
+saveRDS(base_bn,file="/home/jared/big-data/alumnos/jared275/noticias_mex.rds")
+```
+
+```{r,warning=FALSE}
+noticias_mx<-readRDS("/home/jared/big-data/alumnos/jared275/noticias_mex.rds")
+
+show_query(tabla_postgres%>%
+  filter(actiongeo_countrycode=="MX")%>%
+  group_by(eventcode)%>%
+  summarise(conteo=n())%>%
+  arrange(desc(conteo))%>%
+  mutate(conteo_per=round(conteo/sum(conteo),4)))
+
+eventos_freq<-noticias_mx%>%
+  group_by(eventcode)%>%
+  summarise(conteo=n())%>%
+  arrange(desc(conteo))%>%
+  mutate(conteo_per=round(conteo/sum(conteo),4))
+
+head(eventos_freq,5)
+```
+
+De los 5 eventos más frecuentes el más interesante es el 190, que se refiere a al uso convencional de fuerza por grupos organizados. Estos pueden ser policías, militares, entre otros.
+
+####¿Cuando sucedieron más estos hechos?
+
+```{r,warning=FALSE,message=FALSE}
+noticias_mx$año<-as.integer(substr(noticias_mx$monthyear,1,4))
+
+noticias_mx%>%
+  filter(eventcode=="190")%>%
+  group_by(año)%>%
+  summarise(conteo=n())%>%
+  ggvis(~año,~conteo)%>%
+  layer_bars()
+
+```
+
+Tratamos de normalizar esta gráfica considerando que es probable que se tenga más información conforme mayor sea el numero del año, por lo que dividimos el conteo de cada año sobre el número de noticias total que se colectaron en el año.
+
+```{r,warning=FALSE,message=FALSE}
+library(tidyr)
+
+noticias_mx%>%
+  group_by(año)%>%
+  mutate(conteo_tot=n())%>%
+  group_by(año,eventcode,conteo_tot)%>%
+  summarise(conteo=n())%>%
+  filter(eventcode=="190")%>%
+  mutate(conteo_prop=conteo/conteo_tot)%>%
+  ggvis(~año,~conteo_prop)%>%
+  layer_bars()
+```
+
+Tenemos 2 picos temporales, uno para el año 1994, probablemente se deba al levantamiento del ejercito zapatista y en el 2010, que no sabemos que pueda ser. Vamos a analizar en que estados ocurrieron estos eventos.
+
+```{r,warning=FALSE,message=FALSE}
+library(maptools)
+library(rgdal)
+library(ggplot2)
+
+mex_shp <- readOGR("/home/jared/Dropbox/Maestría CD/Estadística Computacional/mapas/estados_ligero" , "Mex_Edos")
+
+mex_shp@data$id = mex_shp@data$NOM_ENT
+edo_df <- fortify(mex_shp, region = "id")
+
+eventos_190<-noticias_mx%>%
+  filter(eventcode=="190")%>%
+  select(actiongeo_long,actiongeo_lat)%>%
+  mutate(actiongeo_long=as.numeric(actiongeo_long),
+         actiongeo_lat=as.numeric(actiongeo_lat))
+
+eventos_190<-as.data.frame(eventos_190)
+
+p <- SpatialPointsDataFrame(eventos_190, data.frame(id=1:nrow(eventos_190)),
+                            proj4string=CRS(proj4string(mex_shp)))
+
+proj4string(mex_shp)
+proj4string(p)
+
+res <- over(p, mex_shp)
+
+data.frame(table(res$NOM_ENT))%>%
+  mutate(id=Var1)%>%
+  right_join(edo_df)%>%
+  group_by(group) %>% 
+  ggvis(x = ~long, y = ~lat) %>%
+  layer_paths(fill = ~desc(Freq))
+```
+
+
+En el mapa anterior se puede ver como los estados que concentran el mayor número de noticias de este tipo son Baja California Norte, Chihuahua, Chiapas y preponderantemente San Luis Potosí.
+
+Ahora, hay que ver como se han comportado a lo largo de 1980 a 2012.
+
+```{r,warning=FALSE,message=FALSE}
+library(RColorBrewer)
+
+mapas_mex<-lapply(1:33, function(i){
+  eventos_190<-noticias_mx%>%
+  filter(eventcode=="190" & año==1979+i)%>%
+  select(actiongeo_long,actiongeo_lat)%>%
+  mutate(actiongeo_long=as.numeric(actiongeo_long),
+         actiongeo_lat=as.numeric(actiongeo_lat))
+
+  
+eventos_190<-as.data.frame(eventos_190)
+
+p <- SpatialPointsDataFrame(eventos_190, data.frame(id=1:nrow(eventos_190)),
+                            proj4string=CRS(proj4string(mex_shp)))
+
+res <- over(p, mex_shp)
+
+datos_hist<-data.frame(prop.table(table(res$NOM_ENT)))
+names(datos_hist)<-c("Estado",paste("año",1979+i))
+
+datos_hist
+})
+df_heatmap<-mapas_mex[[1]]
+for(i in 2:33){
+  df_heatmap<-inner_join(df_heatmap,mapas_mex[[i]])
+}
+heat_map<-as.matrix(df_heatmap[,-1])
+rownames(heat_map)<-df_heatmap[,1]
+
+heatmap(heat_map,scale="column",Rowv=NA,Colv=NA,col=brewer.pal(9, "Blues"))
+
+```
+
+Después de revisar el histórico, el hecho de que en casi todos los años San Luis Potosí salga como el estado que más eventos de este tipo tiene, nos hace sospechar que aquellos eventos en los que no se pueda dar una ubicación más específica, ponen a San Luis como opción default, quizá porque está más o menos al centro del territorio.
+
+También el mapa de calor nos permite ver que Chiapas y Baja California han tenido en la historia más noticias de este tipo, por otro lado Aguascalientes no ha sobresalido en ningun momento sobre este tipo de noticias, como tampoco Nayarit, Colima y Campeche.
