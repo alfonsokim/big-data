@@ -1,0 +1,62 @@
+---
+title: "Flujo de Trabajo ENOE"
+author: "Amanda Balderas M."
+date: "Junio 2015"
+output: html_document
+---
+
+```{r, error=FALSE, message=FALSE, warning=FALSE, echo=FALSE, eval=TRUE}
+# Definiendo ruta de trabajo
+setwd("C:/Users/Amanda29/Documents/archivos_gran_escala/Proyecto_2/ENOE")
+```
+
+--------------------------------------------------------------------
+
+**Objetivo**
+
+Describir el flujo de trabajo realizado para lograr el análisis de la información correspondiente a la base de datos de la Encuesta Nacional de Ocupación y Empleo (ENOE).
+
+--------------------------------------------------------------------
+
+
+**Introducción**
+
+Haciendo uso de las herramientas estudiadas en la materia de _Métodos de Gran Escala_, se lleva a cabo el proceso para lograr obtener un documento mediante el cual se presenten los principales resultados del análisis de la base de datos `base_enoe`.
+
+Cabe señalar que el proceso se realizó con aquellas herramientas disponibles y que son utilizadas cotidianamente, lo que permite implementar un proceso que funciona de manera real y lo más eficientemente posible.
+
+Cabe destacar, que se utilizó la información de la ENOE, debido a un interés personal y laboral de poder implementar un proceso mediante el cual se pueda análizar trimestralmente la información publicada por el INEGI.
+
+Los archivos que integran la documentación del flujo de trabajo son:
+
+
+1. ENOE_postgresql
+
+2. ENOE_exploracion
+
+3. ENOE_analisis
+
+--------------------------------------------------------------------
+
+
+**Flujo de trabajo**
+
+A continuación se presenta el flujo de trabajo realizado y los documentos que describen cada una de las tareas realizadas.
+
+
+1. **Obtención de los datos.** Este proceso se presenta en el documento _"ENOE_exploracion"_. 
+
+2. **Creación de la base de datos en Postgresql.** Este proceso se presenta en el documento _"ENOE_postgresql"_. 
+
+3. **Carga de información en la base.** Este proceso se presenta en el documento _"ENOE_postgresql"_.
+
+4. **Descripción de la base de datos.** Este proceso se presenta en el documento _"ENOE_exploracion"_. 
+
+5. **Limpieza y transformación de los datos.** Este proceso se presenta en el documento _"ENOE_exploracion"_.
+
+6. **Exploración de los datos.** Este proceso se presenta en el documento _"ENOE_exploracion"_.
+
+7. **Análisis final.** Este proceso se presenta en el documento _"ENOE_analisis"_.
+
+
+<center>![](imagenes/enoe1.png)</center>

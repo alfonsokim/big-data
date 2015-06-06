@@ -1,0 +1,719 @@
+---
+title: "Base de Datos UFO en Postgresql"
+author: "Amanda Balderas M."
+date: "Junio 2015"
+output: html_document
+---
+
+```{r, error=FALSE, message=FALSE, warning=FALSE, echo=FALSE, eval=TRUE}
+# Definiendo ruta de trabajo
+setwd("C:/Users/Amanda29/Documents/archivos_gran_escala/Proyecto_2/UFO")
+```
+
+-------------------------------------------------------------------------
+
+**Objetivo**
+
+Describir el proceso mediante el cual se realizó la creación de la base de datos `base_ufo` en Postgresql.
+
+-------------------------------------------------------------------------
+
+**Introducción**
+
+Contamos con una serie de archivos en formato "_txt_" que corresponden a la información mensual de avistamientos de OVNIS, que se integrarán en una base de datos que llamaremos `base_ufo`, esta base estará conformada por tablas particionadas por año.
+
+La base tendrá la siguiente estructura:
+
+<center>![](imagenes/ufo2.png)</center>
+
+
+La implementación para la creación de la base de datos se realizó utilizando "_psql_" (terminal de Postgrest) y "_R_".
+
+-------------------------------------------------------------------------
+
+**Creación de la base**
+
+A continuación se describen los pasos que se siguieron para obtener la base de datos `base_ufo`:
+
+
+1. Creamos la base de datos con el nombre: `base_ufo`.
+
+```
+CREATE DATABASE base_ufo;
+```
+
+
+2. Nos conectamos a la base.
+
+```
+\connect base_ufo
+```
+
+
+3. Creamos esquemas para la base.
+
+```
+CREATE SCHEMA dirty;
+CREATE SCHEMA clean;
+CREATE SCHEMA output;
+CREATE SCHEMA mis_extensiones;
+CREATE SCHEMA dirty_particion;
+CREATE SCHEMA clean_particion;
+CREATE SCHEMA "$user";
+CREATE SCHEMA shameful;
+CREATE SCHEMA playground;
+CREATE SCHEMA mining;
+CREATE SCHEMA ml;
+```
+
+
+4. Modificamos el path de búsqueda.
+
+```
+ALTER DATABASE base_ufo SET SEARCH_PATH=dirty, clean, output, mis_extensiones, dirty_particion, clean_particion, "$user", shameful, playground, mining, ml;
+```
+
+
+5. Se dan los permisos en los esquemas _dirty_ y _clean_.
+
+```
+grant usage on schema dirty to public;
+alter default privileges in schema dirty 
+grant select, references on tables to public;
+alter default privileges in schema dirty
+grant select, update on sequences to public;
+alter default privileges in schema dirty
+grant execute on functions to public;
+alter default privileges in schema dirty
+grant usage on types to public;
+grant usage on schema clean to public;
+alter default privileges in schema clean 
+grant select, references on tables to public;
+alter default privileges in schema clean
+grant select, update on sequences to public;
+alter default privileges in schema clean
+grant execute on functions to public;
+alter default privileges in schema clean
+grant usage on types to public;
+```
+
+
+6. Creamos extensiones.
+
+```
+CREATE EXTENSION dblink SCHEMA mis_extensiones;
+CREATE EXTENSION file_fdw SCHEMA mis_extensiones;
+CREATE EXTENSION fuzzystrmatch SCHEMA mis_extensiones;
+CREATE EXTENSION hstore SCHEMA mis_extensiones;
+CREATE EXTENSION pgcrypto SCHEMA mis_extensiones;
+CREATE EXTENSION postgres_fdw SCHEMA mis_extensiones;
+CREATE EXTENSION tablefunc SCHEMA mis_extensiones;
+CREATE EXTENSION cube SCHEMA mis_extensiones;
+CREATE EXTENSION dict_xsyn SCHEMA mis_extensiones;
+CREATE EXTENSION pg_trgm SCHEMA mis_extensiones;
+CREATE EXTENSION "uuid-ossp" SCHEMA mis_extensiones;
+```
+
+7. Creamos la "_tabla padre_" en nuestro esquema _dirty_, la tabla se llamará `tabla_ufo`.
+
+```
+CREATE TABLE dirty.tabla_ufo (
+  date_time varchar,
+  city varchar,
+  state varchar,
+  shape varchar,
+  duration varchar,
+  summary text,
+  posted varchar,
+  anio varchar,
+  mes varchar,
+  dia varchar,
+  descripcion text
+  );
+```
+
+
+8. Verificamos que se creo la tabla `tabla_ufo` en el esquema _dirty_.
+
+```
+\dt
+```
+
+
+9. Creamos las "_tablas hijas_" que corresponden a las particiones por año en el esquema _dirty_particion_.
+
+```
+CREATE TABLE dirty_particion.tabla_ufo_1400 (CHECK (anio = '1400')) INHERITS (dirty.tabla_ufo);
+CREATE TABLE dirty_particion.tabla_ufo_1561 (CHECK (anio = '1561')) INHERITS (dirty.tabla_ufo);
+CREATE TABLE dirty_particion.tabla_ufo_1715 (CHECK (anio = '1715')) INHERITS (dirty.tabla_ufo);
+CREATE TABLE dirty_particion.tabla_ufo_1762 (CHECK (anio = '1762')) INHERITS (dirty.tabla_ufo);
+CREATE TABLE dirty_particion.tabla_ufo_1790 (CHECK (anio = '1790')) INHERITS (dirty.tabla_ufo);
+CREATE TABLE dirty_particion.tabla_ufo_1800 (CHECK (anio = '1800')) INHERITS (dirty.tabla_ufo);
+CREATE TABLE dirty_particion.tabla_ufo_1830 (CHECK (anio = '1830')) INHERITS (dirty.tabla_ufo);
+CREATE TABLE dirty_particion.tabla_ufo_1860 (CHECK (anio = '1860')) INHERITS (dirty.tabla_ufo);
+CREATE TABLE dirty_particion.tabla_ufo_1861 (CHECK (anio = '1861')) INHERITS (dirty.tabla_ufo);
+CREATE TABLE dirty_particion.tabla_ufo_1864 (CHECK (anio = '1864')) INHERITS (dirty.tabla_ufo);
+CREATE TABLE dirty_particion.tabla_ufo_1865 (CHECK (anio = '1865')) INHERITS (dirty.tabla_ufo);
+CREATE TABLE dirty_particion.tabla_ufo_1871 (CHECK (anio = '1871')) INHERITS (dirty.tabla_ufo);
+CREATE TABLE dirty_particion.tabla_ufo_1880 (CHECK (anio = '1880')) INHERITS (dirty.tabla_ufo);
+CREATE TABLE dirty_particion.tabla_ufo_1886 (CHECK (anio = '1886')) INHERITS (dirty.tabla_ufo);
+CREATE TABLE dirty_particion.tabla_ufo_1896 (CHECK (anio = '1896')) INHERITS (dirty.tabla_ufo);
+CREATE TABLE dirty_particion.tabla_ufo_1897 (CHECK (anio = '1897')) INHERITS (dirty.tabla_ufo);
+CREATE TABLE dirty_particion.tabla_ufo_1899 (CHECK (anio = '1899')) INHERITS (dirty.tabla_ufo);
+CREATE TABLE dirty_particion.tabla_ufo_1900 (CHECK (anio = '1900')) INHERITS (dirty.tabla_ufo);
+CREATE TABLE dirty_particion.tabla_ufo_1905 (CHECK (anio = '1905')) INHERITS (dirty.tabla_ufo);
+CREATE TABLE dirty_particion.tabla_ufo_1906 (CHECK (anio = '1906')) INHERITS (dirty.tabla_ufo);
+CREATE TABLE dirty_particion.tabla_ufo_1910 (CHECK (anio = '1910')) INHERITS (dirty.tabla_ufo);
+CREATE TABLE dirty_particion.tabla_ufo_1911 (CHECK (anio = '1911')) INHERITS (dirty.tabla_ufo);
+CREATE TABLE dirty_particion.tabla_ufo_1914 (CHECK (anio = '1914')) INHERITS (dirty.tabla_ufo);
+CREATE TABLE dirty_particion.tabla_ufo_1916 (CHECK (anio = '1916')) INHERITS (dirty.tabla_ufo);
+CREATE TABLE dirty_particion.tabla_ufo_1917 (CHECK (anio = '1917')) INHERITS (dirty.tabla_ufo);
+CREATE TABLE dirty_particion.tabla_ufo_1920 (CHECK (anio = '1920')) INHERITS (dirty.tabla_ufo);
+CREATE TABLE dirty_particion.tabla_ufo_1922 (CHECK (anio = '1922')) INHERITS (dirty.tabla_ufo);
+CREATE TABLE dirty_particion.tabla_ufo_1925 (CHECK (anio = '1925')) INHERITS (dirty.tabla_ufo);
+CREATE TABLE dirty_particion.tabla_ufo_1929 (CHECK (anio = '1929')) INHERITS (dirty.tabla_ufo);
+CREATE TABLE dirty_particion.tabla_ufo_1930 (CHECK (anio = '1930')) INHERITS (dirty.tabla_ufo);
+CREATE TABLE dirty_particion.tabla_ufo_1931 (CHECK (anio = '1931')) INHERITS (dirty.tabla_ufo);
+CREATE TABLE dirty_particion.tabla_ufo_1933 (CHECK (anio = '1933')) INHERITS (dirty.tabla_ufo);
+CREATE TABLE dirty_particion.tabla_ufo_1934 (CHECK (anio = '1934')) INHERITS (dirty.tabla_ufo);
+CREATE TABLE dirty_particion.tabla_ufo_1935 (CHECK (anio = '1935')) INHERITS (dirty.tabla_ufo);
+CREATE TABLE dirty_particion.tabla_ufo_1936 (CHECK (anio = '1936')) INHERITS (dirty.tabla_ufo);
+CREATE TABLE dirty_particion.tabla_ufo_1937 (CHECK (anio = '1937')) INHERITS (dirty.tabla_ufo);
+CREATE TABLE dirty_particion.tabla_ufo_1939 (CHECK (anio = '1939')) INHERITS (dirty.tabla_ufo);
+CREATE TABLE dirty_particion.tabla_ufo_1941 (CHECK (anio = '1941')) INHERITS (dirty.tabla_ufo);
+CREATE TABLE dirty_particion.tabla_ufo_1942 (CHECK (anio = '1942')) INHERITS (dirty.tabla_ufo);
+CREATE TABLE dirty_particion.tabla_ufo_1943 (CHECK (anio = '1943')) INHERITS (dirty.tabla_ufo);
+CREATE TABLE dirty_particion.tabla_ufo_1944 (CHECK (anio = '1944')) INHERITS (dirty.tabla_ufo);
+CREATE TABLE dirty_particion.tabla_ufo_1945 (CHECK (anio = '1945')) INHERITS (dirty.tabla_ufo);
+CREATE TABLE dirty_particion.tabla_ufo_1946 (CHECK (anio = '1946')) INHERITS (dirty.tabla_ufo);
+CREATE TABLE dirty_particion.tabla_ufo_1947 (CHECK (anio = '1947')) INHERITS (dirty.tabla_ufo);
+CREATE TABLE dirty_particion.tabla_ufo_1948 (CHECK (anio = '1948')) INHERITS (dirty.tabla_ufo);
+CREATE TABLE dirty_particion.tabla_ufo_1949 (CHECK (anio = '1949')) INHERITS (dirty.tabla_ufo);
+CREATE TABLE dirty_particion.tabla_ufo_1950 (CHECK (anio = '1950')) INHERITS (dirty.tabla_ufo);
+CREATE TABLE dirty_particion.tabla_ufo_1951 (CHECK (anio = '1951')) INHERITS (dirty.tabla_ufo);
+CREATE TABLE dirty_particion.tabla_ufo_1952 (CHECK (anio = '1952')) INHERITS (dirty.tabla_ufo);
+CREATE TABLE dirty_particion.tabla_ufo_1953 (CHECK (anio = '1953')) INHERITS (dirty.tabla_ufo);
+CREATE TABLE dirty_particion.tabla_ufo_1954 (CHECK (anio = '1954')) INHERITS (dirty.tabla_ufo);
+CREATE TABLE dirty_particion.tabla_ufo_1955 (CHECK (anio = '1955')) INHERITS (dirty.tabla_ufo);
+CREATE TABLE dirty_particion.tabla_ufo_1956 (CHECK (anio = '1956')) INHERITS (dirty.tabla_ufo);
+CREATE TABLE dirty_particion.tabla_ufo_1957 (CHECK (anio = '1957')) INHERITS (dirty.tabla_ufo);
+CREATE TABLE dirty_particion.tabla_ufo_1958 (CHECK (anio = '1958')) INHERITS (dirty.tabla_ufo);
+CREATE TABLE dirty_particion.tabla_ufo_1959 (CHECK (anio = '1959')) INHERITS (dirty.tabla_ufo);
+CREATE TABLE dirty_particion.tabla_ufo_1960 (CHECK (anio = '1960')) INHERITS (dirty.tabla_ufo);
+CREATE TABLE dirty_particion.tabla_ufo_1961 (CHECK (anio = '1961')) INHERITS (dirty.tabla_ufo);
+CREATE TABLE dirty_particion.tabla_ufo_1962 (CHECK (anio = '1962')) INHERITS (dirty.tabla_ufo);
+CREATE TABLE dirty_particion.tabla_ufo_1963 (CHECK (anio = '1963')) INHERITS (dirty.tabla_ufo);
+CREATE TABLE dirty_particion.tabla_ufo_1964 (CHECK (anio = '1964')) INHERITS (dirty.tabla_ufo);
+CREATE TABLE dirty_particion.tabla_ufo_1965 (CHECK (anio = '1965')) INHERITS (dirty.tabla_ufo);
+CREATE TABLE dirty_particion.tabla_ufo_1966 (CHECK (anio = '1966')) INHERITS (dirty.tabla_ufo);
+CREATE TABLE dirty_particion.tabla_ufo_1967 (CHECK (anio = '1967')) INHERITS (dirty.tabla_ufo);
+CREATE TABLE dirty_particion.tabla_ufo_1968 (CHECK (anio = '1968')) INHERITS (dirty.tabla_ufo);
+CREATE TABLE dirty_particion.tabla_ufo_1969 (CHECK (anio = '1969')) INHERITS (dirty.tabla_ufo);
+CREATE TABLE dirty_particion.tabla_ufo_1970 (CHECK (anio = '1970')) INHERITS (dirty.tabla_ufo);
+CREATE TABLE dirty_particion.tabla_ufo_1971 (CHECK (anio = '1971')) INHERITS (dirty.tabla_ufo);
+CREATE TABLE dirty_particion.tabla_ufo_1972 (CHECK (anio = '1972')) INHERITS (dirty.tabla_ufo);
+CREATE TABLE dirty_particion.tabla_ufo_1973 (CHECK (anio = '1973')) INHERITS (dirty.tabla_ufo);
+CREATE TABLE dirty_particion.tabla_ufo_1974 (CHECK (anio = '1974')) INHERITS (dirty.tabla_ufo);
+CREATE TABLE dirty_particion.tabla_ufo_1975 (CHECK (anio = '1975')) INHERITS (dirty.tabla_ufo);
+CREATE TABLE dirty_particion.tabla_ufo_1976 (CHECK (anio = '1976')) INHERITS (dirty.tabla_ufo);
+CREATE TABLE dirty_particion.tabla_ufo_1977 (CHECK (anio = '1977')) INHERITS (dirty.tabla_ufo);
+CREATE TABLE dirty_particion.tabla_ufo_1978 (CHECK (anio = '1978')) INHERITS (dirty.tabla_ufo);
+CREATE TABLE dirty_particion.tabla_ufo_1979 (CHECK (anio = '1979')) INHERITS (dirty.tabla_ufo);
+CREATE TABLE dirty_particion.tabla_ufo_1980 (CHECK (anio = '1980')) INHERITS (dirty.tabla_ufo);
+CREATE TABLE dirty_particion.tabla_ufo_1981 (CHECK (anio = '1981')) INHERITS (dirty.tabla_ufo);
+CREATE TABLE dirty_particion.tabla_ufo_1982 (CHECK (anio = '1982')) INHERITS (dirty.tabla_ufo);
+CREATE TABLE dirty_particion.tabla_ufo_1983 (CHECK (anio = '1983')) INHERITS (dirty.tabla_ufo);
+CREATE TABLE dirty_particion.tabla_ufo_1984 (CHECK (anio = '1984')) INHERITS (dirty.tabla_ufo);
+CREATE TABLE dirty_particion.tabla_ufo_1985 (CHECK (anio = '1985')) INHERITS (dirty.tabla_ufo);
+CREATE TABLE dirty_particion.tabla_ufo_1986 (CHECK (anio = '1986')) INHERITS (dirty.tabla_ufo);
+CREATE TABLE dirty_particion.tabla_ufo_1987 (CHECK (anio = '1987')) INHERITS (dirty.tabla_ufo);
+CREATE TABLE dirty_particion.tabla_ufo_1988 (CHECK (anio = '1988')) INHERITS (dirty.tabla_ufo);
+CREATE TABLE dirty_particion.tabla_ufo_1989 (CHECK (anio = '1989')) INHERITS (dirty.tabla_ufo);
+CREATE TABLE dirty_particion.tabla_ufo_1990 (CHECK (anio = '1990')) INHERITS (dirty.tabla_ufo);
+CREATE TABLE dirty_particion.tabla_ufo_1991 (CHECK (anio = '1991')) INHERITS (dirty.tabla_ufo);
+CREATE TABLE dirty_particion.tabla_ufo_1992 (CHECK (anio = '1992')) INHERITS (dirty.tabla_ufo);
+CREATE TABLE dirty_particion.tabla_ufo_1993 (CHECK (anio = '1993')) INHERITS (dirty.tabla_ufo);
+CREATE TABLE dirty_particion.tabla_ufo_1994 (CHECK (anio = '1994')) INHERITS (dirty.tabla_ufo);
+CREATE TABLE dirty_particion.tabla_ufo_1995 (CHECK (anio = '1995')) INHERITS (dirty.tabla_ufo);
+CREATE TABLE dirty_particion.tabla_ufo_1996 (CHECK (anio = '1996')) INHERITS (dirty.tabla_ufo);
+CREATE TABLE dirty_particion.tabla_ufo_1997 (CHECK (anio = '1997')) INHERITS (dirty.tabla_ufo);
+CREATE TABLE dirty_particion.tabla_ufo_1998 (CHECK (anio = '1998')) INHERITS (dirty.tabla_ufo);
+CREATE TABLE dirty_particion.tabla_ufo_1999 (CHECK (anio = '1999')) INHERITS (dirty.tabla_ufo);
+CREATE TABLE dirty_particion.tabla_ufo_2000 (CHECK (anio = '2000')) INHERITS (dirty.tabla_ufo);
+CREATE TABLE dirty_particion.tabla_ufo_2001 (CHECK (anio = '2001')) INHERITS (dirty.tabla_ufo);
+CREATE TABLE dirty_particion.tabla_ufo_2002 (CHECK (anio = '2002')) INHERITS (dirty.tabla_ufo);
+CREATE TABLE dirty_particion.tabla_ufo_2003 (CHECK (anio = '2003')) INHERITS (dirty.tabla_ufo);
+CREATE TABLE dirty_particion.tabla_ufo_2004 (CHECK (anio = '2004')) INHERITS (dirty.tabla_ufo);
+CREATE TABLE dirty_particion.tabla_ufo_2005 (CHECK (anio = '2005')) INHERITS (dirty.tabla_ufo);
+CREATE TABLE dirty_particion.tabla_ufo_2006 (CHECK (anio = '2006')) INHERITS (dirty.tabla_ufo);
+CREATE TABLE dirty_particion.tabla_ufo_2007 (CHECK (anio = '2007')) INHERITS (dirty.tabla_ufo);
+CREATE TABLE dirty_particion.tabla_ufo_2008 (CHECK (anio = '2008')) INHERITS (dirty.tabla_ufo);
+CREATE TABLE dirty_particion.tabla_ufo_2009 (CHECK (anio = '2009')) INHERITS (dirty.tabla_ufo);
+CREATE TABLE dirty_particion.tabla_ufo_2010 (CHECK (anio = '2010')) INHERITS (dirty.tabla_ufo);
+CREATE TABLE dirty_particion.tabla_ufo_2011 (CHECK (anio = '2011')) INHERITS (dirty.tabla_ufo);
+CREATE TABLE dirty_particion.tabla_ufo_2012 (CHECK (anio = '2012')) INHERITS (dirty.tabla_ufo);
+CREATE TABLE dirty_particion.tabla_ufo_2013 (CHECK (anio = '2013')) INHERITS (dirty.tabla_ufo);
+CREATE TABLE dirty_particion.tabla_ufo_2014 (CHECK (anio = '2014')) INHERITS (dirty.tabla_ufo);
+CREATE TABLE dirty_particion.tabla_ufo_2015 (CHECK (anio = '2015')) INHERITS (dirty.tabla_ufo);
+```
+
+
+10. Creamos la función para el particionamiento de la `tabla_ufo` del esquema _dirty_.
+
+```
+CREATE OR REPLACE FUNCTION dirty_particion.ufo_anio_function()
+RETURNS TRIGGER AS 
+$BODY$begin
+  IF (NEW.anio = '1400') THEN INSERT INTO dirty_particion.tabla_ufo_1400 VALUES (NEW.*);
+  ELSEIF (NEW.anio = '1561') THEN INSERT INTO dirty_particion.tabla_ufo_1561 VALUES (NEW.*);
+  ELSEIF (NEW.anio = '1715') THEN INSERT INTO dirty_particion.tabla_ufo_1715 VALUES (NEW.*);
+  ELSEIF (NEW.anio = '1762') THEN INSERT INTO dirty_particion.tabla_ufo_1762 VALUES (NEW.*);
+  ELSEIF (NEW.anio = '1790') THEN INSERT INTO dirty_particion.tabla_ufo_1790 VALUES (NEW.*);
+  ELSEIF (NEW.anio = '1800') THEN INSERT INTO dirty_particion.tabla_ufo_1800 VALUES (NEW.*);
+  ELSEIF (NEW.anio = '1830') THEN INSERT INTO dirty_particion.tabla_ufo_1830 VALUES (NEW.*);
+  ELSEIF (NEW.anio = '1860') THEN INSERT INTO dirty_particion.tabla_ufo_1860 VALUES (NEW.*);
+  ELSEIF (NEW.anio = '1861') THEN INSERT INTO dirty_particion.tabla_ufo_1861 VALUES (NEW.*);
+  ELSEIF (NEW.anio = '1864') THEN INSERT INTO dirty_particion.tabla_ufo_1864 VALUES (NEW.*);
+  ELSEIF (NEW.anio = '1865') THEN INSERT INTO dirty_particion.tabla_ufo_1865 VALUES (NEW.*);
+  ELSEIF (NEW.anio = '1871') THEN INSERT INTO dirty_particion.tabla_ufo_1871 VALUES (NEW.*);
+  ELSEIF (NEW.anio = '1880') THEN INSERT INTO dirty_particion.tabla_ufo_1880 VALUES (NEW.*);
+  ELSEIF (NEW.anio = '1886') THEN INSERT INTO dirty_particion.tabla_ufo_1886 VALUES (NEW.*);
+  ELSEIF (NEW.anio = '1896') THEN INSERT INTO dirty_particion.tabla_ufo_1896 VALUES (NEW.*);
+  ELSEIF (NEW.anio = '1897') THEN INSERT INTO dirty_particion.tabla_ufo_1897 VALUES (NEW.*);
+  ELSEIF (NEW.anio = '1899') THEN INSERT INTO dirty_particion.tabla_ufo_1899 VALUES (NEW.*);
+  ELSEIF (NEW.anio = '1900') THEN INSERT INTO dirty_particion.tabla_ufo_1900 VALUES (NEW.*);
+  ELSEIF (NEW.anio = '1905') THEN INSERT INTO dirty_particion.tabla_ufo_1905 VALUES (NEW.*);
+  ELSEIF (NEW.anio = '1906') THEN INSERT INTO dirty_particion.tabla_ufo_1906 VALUES (NEW.*);
+  ELSEIF (NEW.anio = '1910') THEN INSERT INTO dirty_particion.tabla_ufo_1910 VALUES (NEW.*);
+  ELSEIF (NEW.anio = '1911') THEN INSERT INTO dirty_particion.tabla_ufo_1911 VALUES (NEW.*);
+  ELSEIF (NEW.anio = '1914') THEN INSERT INTO dirty_particion.tabla_ufo_1914 VALUES (NEW.*);
+  ELSEIF (NEW.anio = '1916') THEN INSERT INTO dirty_particion.tabla_ufo_1916 VALUES (NEW.*);
+  ELSEIF (NEW.anio = '1917') THEN INSERT INTO dirty_particion.tabla_ufo_1917 VALUES (NEW.*);
+  ELSEIF (NEW.anio = '1920') THEN INSERT INTO dirty_particion.tabla_ufo_1920 VALUES (NEW.*);
+  ELSEIF (NEW.anio = '1922') THEN INSERT INTO dirty_particion.tabla_ufo_1922 VALUES (NEW.*);
+  ELSEIF (NEW.anio = '1925') THEN INSERT INTO dirty_particion.tabla_ufo_1925 VALUES (NEW.*);
+  ELSEIF (NEW.anio = '1929') THEN INSERT INTO dirty_particion.tabla_ufo_1929 VALUES (NEW.*);
+  ELSEIF (NEW.anio = '1930') THEN INSERT INTO dirty_particion.tabla_ufo_1930 VALUES (NEW.*);
+  ELSEIF (NEW.anio = '1931') THEN INSERT INTO dirty_particion.tabla_ufo_1931 VALUES (NEW.*);
+  ELSEIF (NEW.anio = '1933') THEN INSERT INTO dirty_particion.tabla_ufo_1933 VALUES (NEW.*);
+  ELSEIF (NEW.anio = '1934') THEN INSERT INTO dirty_particion.tabla_ufo_1934 VALUES (NEW.*);
+  ELSEIF (NEW.anio = '1935') THEN INSERT INTO dirty_particion.tabla_ufo_1935 VALUES (NEW.*);
+  ELSEIF (NEW.anio = '1936') THEN INSERT INTO dirty_particion.tabla_ufo_1936 VALUES (NEW.*);
+  ELSEIF (NEW.anio = '1937') THEN INSERT INTO dirty_particion.tabla_ufo_1937 VALUES (NEW.*);
+  ELSEIF (NEW.anio = '1939') THEN INSERT INTO dirty_particion.tabla_ufo_1939 VALUES (NEW.*);
+  ELSEIF (NEW.anio = '1941') THEN INSERT INTO dirty_particion.tabla_ufo_1941 VALUES (NEW.*);
+  ELSEIF (NEW.anio = '1942') THEN INSERT INTO dirty_particion.tabla_ufo_1942 VALUES (NEW.*);
+  ELSEIF (NEW.anio = '1943') THEN INSERT INTO dirty_particion.tabla_ufo_1943 VALUES (NEW.*);
+  ELSEIF (NEW.anio = '1944') THEN INSERT INTO dirty_particion.tabla_ufo_1944 VALUES (NEW.*);
+  ELSEIF (NEW.anio = '1945') THEN INSERT INTO dirty_particion.tabla_ufo_1945 VALUES (NEW.*);
+  ELSEIF (NEW.anio = '1946') THEN INSERT INTO dirty_particion.tabla_ufo_1946 VALUES (NEW.*);
+  ELSEIF (NEW.anio = '1947') THEN INSERT INTO dirty_particion.tabla_ufo_1947 VALUES (NEW.*);
+  ELSEIF (NEW.anio = '1948') THEN INSERT INTO dirty_particion.tabla_ufo_1948 VALUES (NEW.*);
+  ELSEIF (NEW.anio = '1949') THEN INSERT INTO dirty_particion.tabla_ufo_1949 VALUES (NEW.*);
+  ELSEIF (NEW.anio = '1950') THEN INSERT INTO dirty_particion.tabla_ufo_1950 VALUES (NEW.*);
+  ELSEIF (NEW.anio = '1951') THEN INSERT INTO dirty_particion.tabla_ufo_1951 VALUES (NEW.*);
+  ELSEIF (NEW.anio = '1952') THEN INSERT INTO dirty_particion.tabla_ufo_1952 VALUES (NEW.*);
+  ELSEIF (NEW.anio = '1953') THEN INSERT INTO dirty_particion.tabla_ufo_1953 VALUES (NEW.*);
+  ELSEIF (NEW.anio = '1954') THEN INSERT INTO dirty_particion.tabla_ufo_1954 VALUES (NEW.*);
+  ELSEIF (NEW.anio = '1955') THEN INSERT INTO dirty_particion.tabla_ufo_1955 VALUES (NEW.*);
+  ELSEIF (NEW.anio = '1956') THEN INSERT INTO dirty_particion.tabla_ufo_1956 VALUES (NEW.*);
+  ELSEIF (NEW.anio = '1957') THEN INSERT INTO dirty_particion.tabla_ufo_1957 VALUES (NEW.*);
+  ELSEIF (NEW.anio = '1958') THEN INSERT INTO dirty_particion.tabla_ufo_1958 VALUES (NEW.*);
+  ELSEIF (NEW.anio = '1959') THEN INSERT INTO dirty_particion.tabla_ufo_1959 VALUES (NEW.*);
+  ELSEIF (NEW.anio = '1960') THEN INSERT INTO dirty_particion.tabla_ufo_1960 VALUES (NEW.*);
+  ELSEIF (NEW.anio = '1961') THEN INSERT INTO dirty_particion.tabla_ufo_1961 VALUES (NEW.*);
+  ELSEIF (NEW.anio = '1962') THEN INSERT INTO dirty_particion.tabla_ufo_1962 VALUES (NEW.*);
+  ELSEIF (NEW.anio = '1963') THEN INSERT INTO dirty_particion.tabla_ufo_1963 VALUES (NEW.*);
+  ELSEIF (NEW.anio = '1964') THEN INSERT INTO dirty_particion.tabla_ufo_1964 VALUES (NEW.*);
+  ELSEIF (NEW.anio = '1965') THEN INSERT INTO dirty_particion.tabla_ufo_1965 VALUES (NEW.*);
+  ELSEIF (NEW.anio = '1966') THEN INSERT INTO dirty_particion.tabla_ufo_1966 VALUES (NEW.*);
+  ELSEIF (NEW.anio = '1967') THEN INSERT INTO dirty_particion.tabla_ufo_1967 VALUES (NEW.*);
+  ELSEIF (NEW.anio = '1968') THEN INSERT INTO dirty_particion.tabla_ufo_1968 VALUES (NEW.*);
+  ELSEIF (NEW.anio = '1969') THEN INSERT INTO dirty_particion.tabla_ufo_1969 VALUES (NEW.*);
+  ELSEIF (NEW.anio = '1970') THEN INSERT INTO dirty_particion.tabla_ufo_1970 VALUES (NEW.*);
+  ELSEIF (NEW.anio = '1971') THEN INSERT INTO dirty_particion.tabla_ufo_1971 VALUES (NEW.*);
+  ELSEIF (NEW.anio = '1972') THEN INSERT INTO dirty_particion.tabla_ufo_1972 VALUES (NEW.*);
+  ELSEIF (NEW.anio = '1973') THEN INSERT INTO dirty_particion.tabla_ufo_1973 VALUES (NEW.*);
+  ELSEIF (NEW.anio = '1974') THEN INSERT INTO dirty_particion.tabla_ufo_1974 VALUES (NEW.*);
+  ELSEIF (NEW.anio = '1975') THEN INSERT INTO dirty_particion.tabla_ufo_1975 VALUES (NEW.*);
+  ELSEIF (NEW.anio = '1976') THEN INSERT INTO dirty_particion.tabla_ufo_1976 VALUES (NEW.*);
+  ELSEIF (NEW.anio = '1977') THEN INSERT INTO dirty_particion.tabla_ufo_1977 VALUES (NEW.*);
+  ELSEIF (NEW.anio = '1978') THEN INSERT INTO dirty_particion.tabla_ufo_1978 VALUES (NEW.*);
+  ELSEIF (NEW.anio = '1979') THEN INSERT INTO dirty_particion.tabla_ufo_1979 VALUES (NEW.*);
+  ELSEIF (NEW.anio = '1980') THEN INSERT INTO dirty_particion.tabla_ufo_1980 VALUES (NEW.*);
+  ELSEIF (NEW.anio = '1981') THEN INSERT INTO dirty_particion.tabla_ufo_1981 VALUES (NEW.*);
+  ELSEIF (NEW.anio = '1982') THEN INSERT INTO dirty_particion.tabla_ufo_1982 VALUES (NEW.*);
+  ELSEIF (NEW.anio = '1983') THEN INSERT INTO dirty_particion.tabla_ufo_1983 VALUES (NEW.*);
+  ELSEIF (NEW.anio = '1984') THEN INSERT INTO dirty_particion.tabla_ufo_1984 VALUES (NEW.*);
+  ELSEIF (NEW.anio = '1985') THEN INSERT INTO dirty_particion.tabla_ufo_1985 VALUES (NEW.*);
+  ELSEIF (NEW.anio = '1986') THEN INSERT INTO dirty_particion.tabla_ufo_1986 VALUES (NEW.*);
+  ELSEIF (NEW.anio = '1987') THEN INSERT INTO dirty_particion.tabla_ufo_1987 VALUES (NEW.*);
+  ELSEIF (NEW.anio = '1988') THEN INSERT INTO dirty_particion.tabla_ufo_1988 VALUES (NEW.*);
+  ELSEIF (NEW.anio = '1989') THEN INSERT INTO dirty_particion.tabla_ufo_1989 VALUES (NEW.*);
+  ELSEIF (NEW.anio = '1990') THEN INSERT INTO dirty_particion.tabla_ufo_1990 VALUES (NEW.*);
+  ELSEIF (NEW.anio = '1991') THEN INSERT INTO dirty_particion.tabla_ufo_1991 VALUES (NEW.*);
+  ELSEIF (NEW.anio = '1992') THEN INSERT INTO dirty_particion.tabla_ufo_1992 VALUES (NEW.*);
+  ELSEIF (NEW.anio = '1993') THEN INSERT INTO dirty_particion.tabla_ufo_1993 VALUES (NEW.*);
+  ELSEIF (NEW.anio = '1994') THEN INSERT INTO dirty_particion.tabla_ufo_1994 VALUES (NEW.*);
+  ELSEIF (NEW.anio = '1995') THEN INSERT INTO dirty_particion.tabla_ufo_1995 VALUES (NEW.*);
+  ELSEIF (NEW.anio = '1996') THEN INSERT INTO dirty_particion.tabla_ufo_1996 VALUES (NEW.*);
+  ELSEIF (NEW.anio = '1997') THEN INSERT INTO dirty_particion.tabla_ufo_1997 VALUES (NEW.*);
+  ELSEIF (NEW.anio = '1998') THEN INSERT INTO dirty_particion.tabla_ufo_1998 VALUES (NEW.*);
+  ELSEIF (NEW.anio = '1999') THEN INSERT INTO dirty_particion.tabla_ufo_1999 VALUES (NEW.*);
+  ELSEIF (NEW.anio = '2000') THEN INSERT INTO dirty_particion.tabla_ufo_2000 VALUES (NEW.*);
+  ELSEIF (NEW.anio = '2001') THEN INSERT INTO dirty_particion.tabla_ufo_2001 VALUES (NEW.*);
+  ELSEIF (NEW.anio = '2002') THEN INSERT INTO dirty_particion.tabla_ufo_2002 VALUES (NEW.*);
+  ELSEIF (NEW.anio = '2003') THEN INSERT INTO dirty_particion.tabla_ufo_2003 VALUES (NEW.*);
+  ELSEIF (NEW.anio = '2004') THEN INSERT INTO dirty_particion.tabla_ufo_2004 VALUES (NEW.*);
+  ELSEIF (NEW.anio = '2005') THEN INSERT INTO dirty_particion.tabla_ufo_2005 VALUES (NEW.*);
+  ELSEIF (NEW.anio = '2006') THEN INSERT INTO dirty_particion.tabla_ufo_2006 VALUES (NEW.*);
+  ELSEIF (NEW.anio = '2007') THEN INSERT INTO dirty_particion.tabla_ufo_2007 VALUES (NEW.*);
+  ELSEIF (NEW.anio = '2008') THEN INSERT INTO dirty_particion.tabla_ufo_2008 VALUES (NEW.*);
+  ELSEIF (NEW.anio = '2009') THEN INSERT INTO dirty_particion.tabla_ufo_2009 VALUES (NEW.*);
+  ELSEIF (NEW.anio = '2010') THEN INSERT INTO dirty_particion.tabla_ufo_2010 VALUES (NEW.*);
+  ELSEIF (NEW.anio = '2011') THEN INSERT INTO dirty_particion.tabla_ufo_2011 VALUES (NEW.*);
+  ELSEIF (NEW.anio = '2012') THEN INSERT INTO dirty_particion.tabla_ufo_2012 VALUES (NEW.*);
+  ELSEIF (NEW.anio = '2013') THEN INSERT INTO dirty_particion.tabla_ufo_2013 VALUES (NEW.*);
+  ELSEIF (NEW.anio = '2014') THEN INSERT INTO dirty_particion.tabla_ufo_2014 VALUES (NEW.*);
+  ELSEIF (NEW.anio = '2015') THEN INSERT INTO dirty_particion.tabla_ufo_2015 VALUES (NEW.*);
+  END IF;
+  RETURN NULL;
+END;$BODY$
+LANGUAGE 'plpgsql';
+
+ALTER FUNCTION dirty_particion.ufo_anio_function() OWNER TO postgres;
+```
+
+
+11. Creamos el trigger para el particionamiento en el esquema _dirty_.
+
+```
+CREATE TRIGGER ufo_anio_trigger
+  BEFORE INSERT ON dirty.tabla_ufo
+  FOR EACH ROW EXECUTE PROCEDURE dirty_particion.ufo_anio_function();
+```
+
+
+12. Cargamos los datos de cada tabla mensual.
+
+Para este paso se hace uso de "_R_", lo anterior para tener un proceso automatizado que pueda seguirse utilizando, ya que se debe considerar que la información que se cargará a la base puede ser actualizada de manera mensual, semanal o incluso diaria, lo anterior debebido a que la fuente de los datos se mantiene en constantemente cambio.
+
+```
+# Cargamos librerías
+library(RPostgreSQL)
+
+# Nos conectamos a base_UFO en Postgresql
+drv <- dbDriver("PostgreSQL")
+cone <- dbConnect(drv, dbname="base_ufo", host="localhost", port=5432, user="postgres", password="bameam29")
+
+# Verificamos que la tabla existe
+dbExistsTable(cone, c("dirty", "tabla_ufo"))
+
+# Función para cargar los datos
+leer_archivos <- function(lista_archivos, cone){
+  n <- nrow(lista_archivos)
+  for (i in 1:n){
+    tabla <- read.table(paste0("C:/Users/Amanda29/Documents/archivos_gran_escala/Proyecto_2/UFO/datos_UFO/tablas_UFO/"    , lista_archivos[i, 1], ".txt"))
+    descrip <- read.table(paste0("C:/Users/Amanda29/Documents/archivos_gran_escala/Proyecto_2/UFO/datos_UFO/descrip_UFO/", lista_archivos[i, 2], ".txt"))
+    colnames(tabla) <- c("date_time", "city", "state", "shape", "duration", "summary", "posted", "anio", "mes", "dia")
+    tabla$descripcion <- descrip$report
+    tabla <- data.frame(lapply(tablas, function(x) as.character(x))
+    dbWriteTable(cone, c("dirty", "tabla_ufo"), value = tabla, append=TRUE, row.names = FALSE)
+  }
+}
+
+# Cargamos los datos utilizando la función que creamos anteriormente
+lista_archivos <- read.table('C:/Users/Amanda29/Documents/archivos_gran_escala/Proyecto_2/UFO/datos_UFO/lista_archivos_UFO.txt')
+leer_archivos(lista_archivos, cone)
+
+# Cerramos la conexión
+dbDisconnect(cone)
+dbUnloadDriver(drv)
+```
+
+12. Verificamos en "_psql_" que la información se cargo completa.
+
+```
+SELECT COUNT (*) FROM dirty.tabla_ufo;
+```
+
+
+En los siguientes puntos se crean las tablas que se incluyen en el esquema _clean_, en estas tablas se cargará la información que resulte del proceso de limpieza y transformación.
+
+13. Creamos la "_tabla padre_" en nuestro esquema _clean_, la tabla se llamará `tabla_ufo`.
+
+```
+CREATE TABLE clean.tabla_ufo (
+  fecha date,
+  hora time,
+  estado varchar,
+  ciudad varchar,
+  forma varchar,
+  duracion integer,
+  anio varchar,
+  descripcion text
+  );
+```
+
+
+14. Verificamos que se creo la tabla `tabla_ufo` en el esquema _clean_.
+
+```
+\dt
+```
+
+
+15. Creamos las "_tablas hijas_" que corresponden a las particiones por año.
+
+```
+CREATE TABLE clean_particion.tabla_ufo_1400 (CHECK (anio = '1400')) INHERITS (clean.tabla_ufo);
+CREATE TABLE clean_particion.tabla_ufo_1561 (CHECK (anio = '1561')) INHERITS (clean.tabla_ufo);
+CREATE TABLE clean_particion.tabla_ufo_1715 (CHECK (anio = '1715')) INHERITS (clean.tabla_ufo);
+CREATE TABLE clean_particion.tabla_ufo_1762 (CHECK (anio = '1762')) INHERITS (clean.tabla_ufo);
+CREATE TABLE clean_particion.tabla_ufo_1790 (CHECK (anio = '1790')) INHERITS (clean.tabla_ufo);
+CREATE TABLE clean_particion.tabla_ufo_1800 (CHECK (anio = '1800')) INHERITS (clean.tabla_ufo);
+CREATE TABLE clean_particion.tabla_ufo_1830 (CHECK (anio = '1830')) INHERITS (clean.tabla_ufo);
+CREATE TABLE clean_particion.tabla_ufo_1860 (CHECK (anio = '1860')) INHERITS (clean.tabla_ufo);
+CREATE TABLE clean_particion.tabla_ufo_1861 (CHECK (anio = '1861')) INHERITS (clean.tabla_ufo);
+CREATE TABLE clean_particion.tabla_ufo_1864 (CHECK (anio = '1864')) INHERITS (clean.tabla_ufo);
+CREATE TABLE clean_particion.tabla_ufo_1865 (CHECK (anio = '1865')) INHERITS (clean.tabla_ufo);
+CREATE TABLE clean_particion.tabla_ufo_1871 (CHECK (anio = '1871')) INHERITS (clean.tabla_ufo);
+CREATE TABLE clean_particion.tabla_ufo_1880 (CHECK (anio = '1880')) INHERITS (clean.tabla_ufo);
+CREATE TABLE clean_particion.tabla_ufo_1886 (CHECK (anio = '1886')) INHERITS (clean.tabla_ufo);
+CREATE TABLE clean_particion.tabla_ufo_1896 (CHECK (anio = '1896')) INHERITS (clean.tabla_ufo);
+CREATE TABLE clean_particion.tabla_ufo_1897 (CHECK (anio = '1897')) INHERITS (clean.tabla_ufo);
+CREATE TABLE clean_particion.tabla_ufo_1899 (CHECK (anio = '1899')) INHERITS (clean.tabla_ufo);
+CREATE TABLE clean_particion.tabla_ufo_1900 (CHECK (anio = '1900')) INHERITS (clean.tabla_ufo);
+CREATE TABLE clean_particion.tabla_ufo_1905 (CHECK (anio = '1905')) INHERITS (clean.tabla_ufo);
+CREATE TABLE clean_particion.tabla_ufo_1906 (CHECK (anio = '1906')) INHERITS (clean.tabla_ufo);
+CREATE TABLE clean_particion.tabla_ufo_1910 (CHECK (anio = '1910')) INHERITS (clean.tabla_ufo);
+CREATE TABLE clean_particion.tabla_ufo_1911 (CHECK (anio = '1911')) INHERITS (clean.tabla_ufo);
+CREATE TABLE clean_particion.tabla_ufo_1914 (CHECK (anio = '1914')) INHERITS (clean.tabla_ufo);
+CREATE TABLE clean_particion.tabla_ufo_1916 (CHECK (anio = '1916')) INHERITS (clean.tabla_ufo);
+CREATE TABLE clean_particion.tabla_ufo_1917 (CHECK (anio = '1917')) INHERITS (clean.tabla_ufo);
+CREATE TABLE clean_particion.tabla_ufo_1920 (CHECK (anio = '1920')) INHERITS (clean.tabla_ufo);
+CREATE TABLE clean_particion.tabla_ufo_1922 (CHECK (anio = '1922')) INHERITS (clean.tabla_ufo);
+CREATE TABLE clean_particion.tabla_ufo_1925 (CHECK (anio = '1925')) INHERITS (clean.tabla_ufo);
+CREATE TABLE clean_particion.tabla_ufo_1929 (CHECK (anio = '1929')) INHERITS (clean.tabla_ufo);
+CREATE TABLE clean_particion.tabla_ufo_1930 (CHECK (anio = '1930')) INHERITS (clean.tabla_ufo);
+CREATE TABLE clean_particion.tabla_ufo_1931 (CHECK (anio = '1931')) INHERITS (clean.tabla_ufo);
+CREATE TABLE clean_particion.tabla_ufo_1933 (CHECK (anio = '1933')) INHERITS (clean.tabla_ufo);
+CREATE TABLE clean_particion.tabla_ufo_1934 (CHECK (anio = '1934')) INHERITS (clean.tabla_ufo);
+CREATE TABLE clean_particion.tabla_ufo_1935 (CHECK (anio = '1935')) INHERITS (clean.tabla_ufo);
+CREATE TABLE clean_particion.tabla_ufo_1936 (CHECK (anio = '1936')) INHERITS (clean.tabla_ufo);
+CREATE TABLE clean_particion.tabla_ufo_1937 (CHECK (anio = '1937')) INHERITS (clean.tabla_ufo);
+CREATE TABLE clean_particion.tabla_ufo_1939 (CHECK (anio = '1939')) INHERITS (clean.tabla_ufo);
+CREATE TABLE clean_particion.tabla_ufo_1941 (CHECK (anio = '1941')) INHERITS (clean.tabla_ufo);
+CREATE TABLE clean_particion.tabla_ufo_1942 (CHECK (anio = '1942')) INHERITS (clean.tabla_ufo);
+CREATE TABLE clean_particion.tabla_ufo_1943 (CHECK (anio = '1943')) INHERITS (clean.tabla_ufo);
+CREATE TABLE clean_particion.tabla_ufo_1944 (CHECK (anio = '1944')) INHERITS (clean.tabla_ufo);
+CREATE TABLE clean_particion.tabla_ufo_1945 (CHECK (anio = '1945')) INHERITS (clean.tabla_ufo);
+CREATE TABLE clean_particion.tabla_ufo_1946 (CHECK (anio = '1946')) INHERITS (clean.tabla_ufo);
+CREATE TABLE clean_particion.tabla_ufo_1947 (CHECK (anio = '1947')) INHERITS (clean.tabla_ufo);
+CREATE TABLE clean_particion.tabla_ufo_1948 (CHECK (anio = '1948')) INHERITS (clean.tabla_ufo);
+CREATE TABLE clean_particion.tabla_ufo_1949 (CHECK (anio = '1949')) INHERITS (clean.tabla_ufo);
+CREATE TABLE clean_particion.tabla_ufo_1950 (CHECK (anio = '1950')) INHERITS (clean.tabla_ufo);
+CREATE TABLE clean_particion.tabla_ufo_1951 (CHECK (anio = '1951')) INHERITS (clean.tabla_ufo);
+CREATE TABLE clean_particion.tabla_ufo_1952 (CHECK (anio = '1952')) INHERITS (clean.tabla_ufo);
+CREATE TABLE clean_particion.tabla_ufo_1953 (CHECK (anio = '1953')) INHERITS (clean.tabla_ufo);
+CREATE TABLE clean_particion.tabla_ufo_1954 (CHECK (anio = '1954')) INHERITS (clean.tabla_ufo);
+CREATE TABLE clean_particion.tabla_ufo_1955 (CHECK (anio = '1955')) INHERITS (clean.tabla_ufo);
+CREATE TABLE clean_particion.tabla_ufo_1956 (CHECK (anio = '1956')) INHERITS (clean.tabla_ufo);
+CREATE TABLE clean_particion.tabla_ufo_1957 (CHECK (anio = '1957')) INHERITS (clean.tabla_ufo);
+CREATE TABLE clean_particion.tabla_ufo_1958 (CHECK (anio = '1958')) INHERITS (clean.tabla_ufo);
+CREATE TABLE clean_particion.tabla_ufo_1959 (CHECK (anio = '1959')) INHERITS (clean.tabla_ufo);
+CREATE TABLE clean_particion.tabla_ufo_1960 (CHECK (anio = '1960')) INHERITS (clean.tabla_ufo);
+CREATE TABLE clean_particion.tabla_ufo_1961 (CHECK (anio = '1961')) INHERITS (clean.tabla_ufo);
+CREATE TABLE clean_particion.tabla_ufo_1962 (CHECK (anio = '1962')) INHERITS (clean.tabla_ufo);
+CREATE TABLE clean_particion.tabla_ufo_1963 (CHECK (anio = '1963')) INHERITS (clean.tabla_ufo);
+CREATE TABLE clean_particion.tabla_ufo_1964 (CHECK (anio = '1964')) INHERITS (clean.tabla_ufo);
+CREATE TABLE clean_particion.tabla_ufo_1965 (CHECK (anio = '1965')) INHERITS (clean.tabla_ufo);
+CREATE TABLE clean_particion.tabla_ufo_1966 (CHECK (anio = '1966')) INHERITS (clean.tabla_ufo);
+CREATE TABLE clean_particion.tabla_ufo_1967 (CHECK (anio = '1967')) INHERITS (clean.tabla_ufo);
+CREATE TABLE clean_particion.tabla_ufo_1968 (CHECK (anio = '1968')) INHERITS (clean.tabla_ufo);
+CREATE TABLE clean_particion.tabla_ufo_1969 (CHECK (anio = '1969')) INHERITS (clean.tabla_ufo);
+CREATE TABLE clean_particion.tabla_ufo_1970 (CHECK (anio = '1970')) INHERITS (clean.tabla_ufo);
+CREATE TABLE clean_particion.tabla_ufo_1971 (CHECK (anio = '1971')) INHERITS (clean.tabla_ufo);
+CREATE TABLE clean_particion.tabla_ufo_1972 (CHECK (anio = '1972')) INHERITS (clean.tabla_ufo);
+CREATE TABLE clean_particion.tabla_ufo_1973 (CHECK (anio = '1973')) INHERITS (clean.tabla_ufo);
+CREATE TABLE clean_particion.tabla_ufo_1974 (CHECK (anio = '1974')) INHERITS (clean.tabla_ufo);
+CREATE TABLE clean_particion.tabla_ufo_1975 (CHECK (anio = '1975')) INHERITS (clean.tabla_ufo);
+CREATE TABLE clean_particion.tabla_ufo_1976 (CHECK (anio = '1976')) INHERITS (clean.tabla_ufo);
+CREATE TABLE clean_particion.tabla_ufo_1977 (CHECK (anio = '1977')) INHERITS (clean.tabla_ufo);
+CREATE TABLE clean_particion.tabla_ufo_1978 (CHECK (anio = '1978')) INHERITS (clean.tabla_ufo);
+CREATE TABLE clean_particion.tabla_ufo_1979 (CHECK (anio = '1979')) INHERITS (clean.tabla_ufo);
+CREATE TABLE clean_particion.tabla_ufo_1980 (CHECK (anio = '1980')) INHERITS (clean.tabla_ufo);
+CREATE TABLE clean_particion.tabla_ufo_1981 (CHECK (anio = '1981')) INHERITS (clean.tabla_ufo);
+CREATE TABLE clean_particion.tabla_ufo_1982 (CHECK (anio = '1982')) INHERITS (clean.tabla_ufo);
+CREATE TABLE clean_particion.tabla_ufo_1983 (CHECK (anio = '1983')) INHERITS (clean.tabla_ufo);
+CREATE TABLE clean_particion.tabla_ufo_1984 (CHECK (anio = '1984')) INHERITS (clean.tabla_ufo);
+CREATE TABLE clean_particion.tabla_ufo_1985 (CHECK (anio = '1985')) INHERITS (clean.tabla_ufo);
+CREATE TABLE clean_particion.tabla_ufo_1986 (CHECK (anio = '1986')) INHERITS (clean.tabla_ufo);
+CREATE TABLE clean_particion.tabla_ufo_1987 (CHECK (anio = '1987')) INHERITS (clean.tabla_ufo);
+CREATE TABLE clean_particion.tabla_ufo_1988 (CHECK (anio = '1988')) INHERITS (clean.tabla_ufo);
+CREATE TABLE clean_particion.tabla_ufo_1989 (CHECK (anio = '1989')) INHERITS (clean.tabla_ufo);
+CREATE TABLE clean_particion.tabla_ufo_1990 (CHECK (anio = '1990')) INHERITS (clean.tabla_ufo);
+CREATE TABLE clean_particion.tabla_ufo_1991 (CHECK (anio = '1991')) INHERITS (clean.tabla_ufo);
+CREATE TABLE clean_particion.tabla_ufo_1992 (CHECK (anio = '1992')) INHERITS (clean.tabla_ufo);
+CREATE TABLE clean_particion.tabla_ufo_1993 (CHECK (anio = '1993')) INHERITS (clean.tabla_ufo);
+CREATE TABLE clean_particion.tabla_ufo_1994 (CHECK (anio = '1994')) INHERITS (clean.tabla_ufo);
+CREATE TABLE clean_particion.tabla_ufo_1995 (CHECK (anio = '1995')) INHERITS (clean.tabla_ufo);
+CREATE TABLE clean_particion.tabla_ufo_1996 (CHECK (anio = '1996')) INHERITS (clean.tabla_ufo);
+CREATE TABLE clean_particion.tabla_ufo_1997 (CHECK (anio = '1997')) INHERITS (clean.tabla_ufo);
+CREATE TABLE clean_particion.tabla_ufo_1998 (CHECK (anio = '1998')) INHERITS (clean.tabla_ufo);
+CREATE TABLE clean_particion.tabla_ufo_1999 (CHECK (anio = '1999')) INHERITS (clean.tabla_ufo);
+CREATE TABLE clean_particion.tabla_ufo_2000 (CHECK (anio = '2000')) INHERITS (clean.tabla_ufo);
+CREATE TABLE clean_particion.tabla_ufo_2001 (CHECK (anio = '2001')) INHERITS (clean.tabla_ufo);
+CREATE TABLE clean_particion.tabla_ufo_2002 (CHECK (anio = '2002')) INHERITS (clean.tabla_ufo);
+CREATE TABLE clean_particion.tabla_ufo_2003 (CHECK (anio = '2003')) INHERITS (clean.tabla_ufo);
+CREATE TABLE clean_particion.tabla_ufo_2004 (CHECK (anio = '2004')) INHERITS (clean.tabla_ufo);
+CREATE TABLE clean_particion.tabla_ufo_2005 (CHECK (anio = '2005')) INHERITS (clean.tabla_ufo);
+CREATE TABLE clean_particion.tabla_ufo_2006 (CHECK (anio = '2006')) INHERITS (clean.tabla_ufo);
+CREATE TABLE clean_particion.tabla_ufo_2007 (CHECK (anio = '2007')) INHERITS (clean.tabla_ufo);
+CREATE TABLE clean_particion.tabla_ufo_2008 (CHECK (anio = '2008')) INHERITS (clean.tabla_ufo);
+CREATE TABLE clean_particion.tabla_ufo_2009 (CHECK (anio = '2009')) INHERITS (clean.tabla_ufo);
+CREATE TABLE clean_particion.tabla_ufo_2010 (CHECK (anio = '2010')) INHERITS (clean.tabla_ufo);
+CREATE TABLE clean_particion.tabla_ufo_2011 (CHECK (anio = '2011')) INHERITS (clean.tabla_ufo);
+CREATE TABLE clean_particion.tabla_ufo_2012 (CHECK (anio = '2012')) INHERITS (clean.tabla_ufo);
+CREATE TABLE clean_particion.tabla_ufo_2013 (CHECK (anio = '2013')) INHERITS (clean.tabla_ufo);
+CREATE TABLE clean_particion.tabla_ufo_2014 (CHECK (anio = '2014')) INHERITS (clean.tabla_ufo);
+CREATE TABLE clean_particion.tabla_ufo_2015 (CHECK (anio = '2015')) INHERITS (clean.tabla_ufo);
+```
+
+
+16. Creamos la función para el particionamiento de la `tabla_ufo` del esquema _clean_.
+
+```
+CREATE OR REPLACE FUNCTION clean_particion.ufo_anio_function()
+RETURNS TRIGGER AS 
+$BODY$begin
+  IF (NEW.anio = '1400') THEN INSERT INTO clean_particion.tabla_ufo_1400 VALUES (NEW.*);
+  ELSEIF (NEW.anio = '1561') THEN INSERT INTO clean_particion.tabla_ufo_1561 VALUES (NEW.*);
+  ELSEIF (NEW.anio = '1715') THEN INSERT INTO clean_particion.tabla_ufo_1715 VALUES (NEW.*);
+  ELSEIF (NEW.anio = '1762') THEN INSERT INTO clean_particion.tabla_ufo_1762 VALUES (NEW.*);
+  ELSEIF (NEW.anio = '1790') THEN INSERT INTO clean_particion.tabla_ufo_1790 VALUES (NEW.*);
+  ELSEIF (NEW.anio = '1800') THEN INSERT INTO clean_particion.tabla_ufo_1800 VALUES (NEW.*);
+  ELSEIF (NEW.anio = '1830') THEN INSERT INTO clean_particion.tabla_ufo_1830 VALUES (NEW.*);
+  ELSEIF (NEW.anio = '1860') THEN INSERT INTO clean_particion.tabla_ufo_1860 VALUES (NEW.*);
+  ELSEIF (NEW.anio = '1861') THEN INSERT INTO clean_particion.tabla_ufo_1861 VALUES (NEW.*);
+  ELSEIF (NEW.anio = '1864') THEN INSERT INTO clean_particion.tabla_ufo_1864 VALUES (NEW.*);
+  ELSEIF (NEW.anio = '1865') THEN INSERT INTO clean_particion.tabla_ufo_1865 VALUES (NEW.*);
+  ELSEIF (NEW.anio = '1871') THEN INSERT INTO clean_particion.tabla_ufo_1871 VALUES (NEW.*);
+  ELSEIF (NEW.anio = '1880') THEN INSERT INTO clean_particion.tabla_ufo_1880 VALUES (NEW.*);
+  ELSEIF (NEW.anio = '1886') THEN INSERT INTO clean_particion.tabla_ufo_1886 VALUES (NEW.*);
+  ELSEIF (NEW.anio = '1896') THEN INSERT INTO clean_particion.tabla_ufo_1896 VALUES (NEW.*);
+  ELSEIF (NEW.anio = '1897') THEN INSERT INTO clean_particion.tabla_ufo_1897 VALUES (NEW.*);
+  ELSEIF (NEW.anio = '1899') THEN INSERT INTO clean_particion.tabla_ufo_1899 VALUES (NEW.*);
+  ELSEIF (NEW.anio = '1900') THEN INSERT INTO clean_particion.tabla_ufo_1900 VALUES (NEW.*);
+  ELSEIF (NEW.anio = '1905') THEN INSERT INTO clean_particion.tabla_ufo_1905 VALUES (NEW.*);
+  ELSEIF (NEW.anio = '1906') THEN INSERT INTO clean_particion.tabla_ufo_1906 VALUES (NEW.*);
+  ELSEIF (NEW.anio = '1910') THEN INSERT INTO clean_particion.tabla_ufo_1910 VALUES (NEW.*);
+  ELSEIF (NEW.anio = '1911') THEN INSERT INTO clean_particion.tabla_ufo_1911 VALUES (NEW.*);
+  ELSEIF (NEW.anio = '1914') THEN INSERT INTO clean_particion.tabla_ufo_1914 VALUES (NEW.*);
+  ELSEIF (NEW.anio = '1916') THEN INSERT INTO clean_particion.tabla_ufo_1916 VALUES (NEW.*);
+  ELSEIF (NEW.anio = '1917') THEN INSERT INTO clean_particion.tabla_ufo_1917 VALUES (NEW.*);
+  ELSEIF (NEW.anio = '1920') THEN INSERT INTO clean_particion.tabla_ufo_1920 VALUES (NEW.*);
+  ELSEIF (NEW.anio = '1922') THEN INSERT INTO clean_particion.tabla_ufo_1922 VALUES (NEW.*);
+  ELSEIF (NEW.anio = '1925') THEN INSERT INTO clean_particion.tabla_ufo_1925 VALUES (NEW.*);
+  ELSEIF (NEW.anio = '1929') THEN INSERT INTO clean_particion.tabla_ufo_1929 VALUES (NEW.*);
+  ELSEIF (NEW.anio = '1930') THEN INSERT INTO clean_particion.tabla_ufo_1930 VALUES (NEW.*);
+  ELSEIF (NEW.anio = '1931') THEN INSERT INTO clean_particion.tabla_ufo_1931 VALUES (NEW.*);
+  ELSEIF (NEW.anio = '1933') THEN INSERT INTO clean_particion.tabla_ufo_1933 VALUES (NEW.*);
+  ELSEIF (NEW.anio = '1934') THEN INSERT INTO clean_particion.tabla_ufo_1934 VALUES (NEW.*);
+  ELSEIF (NEW.anio = '1935') THEN INSERT INTO clean_particion.tabla_ufo_1935 VALUES (NEW.*);
+  ELSEIF (NEW.anio = '1936') THEN INSERT INTO clean_particion.tabla_ufo_1936 VALUES (NEW.*);
+  ELSEIF (NEW.anio = '1937') THEN INSERT INTO clean_particion.tabla_ufo_1937 VALUES (NEW.*);
+  ELSEIF (NEW.anio = '1939') THEN INSERT INTO clean_particion.tabla_ufo_1939 VALUES (NEW.*);
+  ELSEIF (NEW.anio = '1941') THEN INSERT INTO clean_particion.tabla_ufo_1941 VALUES (NEW.*);
+  ELSEIF (NEW.anio = '1942') THEN INSERT INTO clean_particion.tabla_ufo_1942 VALUES (NEW.*);
+  ELSEIF (NEW.anio = '1943') THEN INSERT INTO clean_particion.tabla_ufo_1943 VALUES (NEW.*);
+  ELSEIF (NEW.anio = '1944') THEN INSERT INTO clean_particion.tabla_ufo_1944 VALUES (NEW.*);
+  ELSEIF (NEW.anio = '1945') THEN INSERT INTO clean_particion.tabla_ufo_1945 VALUES (NEW.*);
+  ELSEIF (NEW.anio = '1946') THEN INSERT INTO clean_particion.tabla_ufo_1946 VALUES (NEW.*);
+  ELSEIF (NEW.anio = '1947') THEN INSERT INTO clean_particion.tabla_ufo_1947 VALUES (NEW.*);
+  ELSEIF (NEW.anio = '1948') THEN INSERT INTO clean_particion.tabla_ufo_1948 VALUES (NEW.*);
+  ELSEIF (NEW.anio = '1949') THEN INSERT INTO clean_particion.tabla_ufo_1949 VALUES (NEW.*);
+  ELSEIF (NEW.anio = '1950') THEN INSERT INTO clean_particion.tabla_ufo_1950 VALUES (NEW.*);
+  ELSEIF (NEW.anio = '1951') THEN INSERT INTO clean_particion.tabla_ufo_1951 VALUES (NEW.*);
+  ELSEIF (NEW.anio = '1952') THEN INSERT INTO clean_particion.tabla_ufo_1952 VALUES (NEW.*);
+  ELSEIF (NEW.anio = '1953') THEN INSERT INTO clean_particion.tabla_ufo_1953 VALUES (NEW.*);
+  ELSEIF (NEW.anio = '1954') THEN INSERT INTO clean_particion.tabla_ufo_1954 VALUES (NEW.*);
+  ELSEIF (NEW.anio = '1955') THEN INSERT INTO clean_particion.tabla_ufo_1955 VALUES (NEW.*);
+  ELSEIF (NEW.anio = '1956') THEN INSERT INTO clean_particion.tabla_ufo_1956 VALUES (NEW.*);
+  ELSEIF (NEW.anio = '1957') THEN INSERT INTO clean_particion.tabla_ufo_1957 VALUES (NEW.*);
+  ELSEIF (NEW.anio = '1958') THEN INSERT INTO clean_particion.tabla_ufo_1958 VALUES (NEW.*);
+  ELSEIF (NEW.anio = '1959') THEN INSERT INTO clean_particion.tabla_ufo_1959 VALUES (NEW.*);
+  ELSEIF (NEW.anio = '1960') THEN INSERT INTO clean_particion.tabla_ufo_1960 VALUES (NEW.*);
+  ELSEIF (NEW.anio = '1961') THEN INSERT INTO clean_particion.tabla_ufo_1961 VALUES (NEW.*);
+  ELSEIF (NEW.anio = '1962') THEN INSERT INTO clean_particion.tabla_ufo_1962 VALUES (NEW.*);
+  ELSEIF (NEW.anio = '1963') THEN INSERT INTO clean_particion.tabla_ufo_1963 VALUES (NEW.*);
+  ELSEIF (NEW.anio = '1964') THEN INSERT INTO clean_particion.tabla_ufo_1964 VALUES (NEW.*);
+  ELSEIF (NEW.anio = '1965') THEN INSERT INTO clean_particion.tabla_ufo_1965 VALUES (NEW.*);
+  ELSEIF (NEW.anio = '1966') THEN INSERT INTO clean_particion.tabla_ufo_1966 VALUES (NEW.*);
+  ELSEIF (NEW.anio = '1967') THEN INSERT INTO clean_particion.tabla_ufo_1967 VALUES (NEW.*);
+  ELSEIF (NEW.anio = '1968') THEN INSERT INTO clean_particion.tabla_ufo_1968 VALUES (NEW.*);
+  ELSEIF (NEW.anio = '1969') THEN INSERT INTO clean_particion.tabla_ufo_1969 VALUES (NEW.*);
+  ELSEIF (NEW.anio = '1970') THEN INSERT INTO clean_particion.tabla_ufo_1970 VALUES (NEW.*);
+  ELSEIF (NEW.anio = '1971') THEN INSERT INTO clean_particion.tabla_ufo_1971 VALUES (NEW.*);
+  ELSEIF (NEW.anio = '1972') THEN INSERT INTO clean_particion.tabla_ufo_1972 VALUES (NEW.*);
+  ELSEIF (NEW.anio = '1973') THEN INSERT INTO clean_particion.tabla_ufo_1973 VALUES (NEW.*);
+  ELSEIF (NEW.anio = '1974') THEN INSERT INTO clean_particion.tabla_ufo_1974 VALUES (NEW.*);
+  ELSEIF (NEW.anio = '1975') THEN INSERT INTO clean_particion.tabla_ufo_1975 VALUES (NEW.*);
+  ELSEIF (NEW.anio = '1976') THEN INSERT INTO clean_particion.tabla_ufo_1976 VALUES (NEW.*);
+  ELSEIF (NEW.anio = '1977') THEN INSERT INTO clean_particion.tabla_ufo_1977 VALUES (NEW.*);
+  ELSEIF (NEW.anio = '1978') THEN INSERT INTO clean_particion.tabla_ufo_1978 VALUES (NEW.*);
+  ELSEIF (NEW.anio = '1979') THEN INSERT INTO clean_particion.tabla_ufo_1979 VALUES (NEW.*);
+  ELSEIF (NEW.anio = '1980') THEN INSERT INTO clean_particion.tabla_ufo_1980 VALUES (NEW.*);
+  ELSEIF (NEW.anio = '1981') THEN INSERT INTO clean_particion.tabla_ufo_1981 VALUES (NEW.*);
+  ELSEIF (NEW.anio = '1982') THEN INSERT INTO clean_particion.tabla_ufo_1982 VALUES (NEW.*);
+  ELSEIF (NEW.anio = '1983') THEN INSERT INTO clean_particion.tabla_ufo_1983 VALUES (NEW.*);
+  ELSEIF (NEW.anio = '1984') THEN INSERT INTO clean_particion.tabla_ufo_1984 VALUES (NEW.*);
+  ELSEIF (NEW.anio = '1985') THEN INSERT INTO clean_particion.tabla_ufo_1985 VALUES (NEW.*);
+  ELSEIF (NEW.anio = '1986') THEN INSERT INTO clean_particion.tabla_ufo_1986 VALUES (NEW.*);
+  ELSEIF (NEW.anio = '1987') THEN INSERT INTO clean_particion.tabla_ufo_1987 VALUES (NEW.*);
+  ELSEIF (NEW.anio = '1988') THEN INSERT INTO clean_particion.tabla_ufo_1988 VALUES (NEW.*);
+  ELSEIF (NEW.anio = '1989') THEN INSERT INTO clean_particion.tabla_ufo_1989 VALUES (NEW.*);
+  ELSEIF (NEW.anio = '1990') THEN INSERT INTO clean_particion.tabla_ufo_1990 VALUES (NEW.*);
+  ELSEIF (NEW.anio = '1991') THEN INSERT INTO clean_particion.tabla_ufo_1991 VALUES (NEW.*);
+  ELSEIF (NEW.anio = '1992') THEN INSERT INTO clean_particion.tabla_ufo_1992 VALUES (NEW.*);
+  ELSEIF (NEW.anio = '1993') THEN INSERT INTO clean_particion.tabla_ufo_1993 VALUES (NEW.*);
+  ELSEIF (NEW.anio = '1994') THEN INSERT INTO clean_particion.tabla_ufo_1994 VALUES (NEW.*);
+  ELSEIF (NEW.anio = '1995') THEN INSERT INTO clean_particion.tabla_ufo_1995 VALUES (NEW.*);
+  ELSEIF (NEW.anio = '1996') THEN INSERT INTO clean_particion.tabla_ufo_1996 VALUES (NEW.*);
+  ELSEIF (NEW.anio = '1997') THEN INSERT INTO clean_particion.tabla_ufo_1997 VALUES (NEW.*);
+  ELSEIF (NEW.anio = '1998') THEN INSERT INTO clean_particion.tabla_ufo_1998 VALUES (NEW.*);
+  ELSEIF (NEW.anio = '1999') THEN INSERT INTO clean_particion.tabla_ufo_1999 VALUES (NEW.*);
+  ELSEIF (NEW.anio = '2000') THEN INSERT INTO clean_particion.tabla_ufo_2000 VALUES (NEW.*);
+  ELSEIF (NEW.anio = '2001') THEN INSERT INTO clean_particion.tabla_ufo_2001 VALUES (NEW.*);
+  ELSEIF (NEW.anio = '2002') THEN INSERT INTO clean_particion.tabla_ufo_2002 VALUES (NEW.*);
+  ELSEIF (NEW.anio = '2003') THEN INSERT INTO clean_particion.tabla_ufo_2003 VALUES (NEW.*);
+  ELSEIF (NEW.anio = '2004') THEN INSERT INTO clean_particion.tabla_ufo_2004 VALUES (NEW.*);
+  ELSEIF (NEW.anio = '2005') THEN INSERT INTO clean_particion.tabla_ufo_2005 VALUES (NEW.*);
+  ELSEIF (NEW.anio = '2006') THEN INSERT INTO clean_particion.tabla_ufo_2006 VALUES (NEW.*);
+  ELSEIF (NEW.anio = '2007') THEN INSERT INTO clean_particion.tabla_ufo_2007 VALUES (NEW.*);
+  ELSEIF (NEW.anio = '2008') THEN INSERT INTO clean_particion.tabla_ufo_2008 VALUES (NEW.*);
+  ELSEIF (NEW.anio = '2009') THEN INSERT INTO clean_particion.tabla_ufo_2009 VALUES (NEW.*);
+  ELSEIF (NEW.anio = '2010') THEN INSERT INTO clean_particion.tabla_ufo_2010 VALUES (NEW.*);
+  ELSEIF (NEW.anio = '2011') THEN INSERT INTO clean_particion.tabla_ufo_2011 VALUES (NEW.*);
+  ELSEIF (NEW.anio = '2012') THEN INSERT INTO clean_particion.tabla_ufo_2012 VALUES (NEW.*);
+  ELSEIF (NEW.anio = '2013') THEN INSERT INTO clean_particion.tabla_ufo_2013 VALUES (NEW.*);
+  ELSEIF (NEW.anio = '2014') THEN INSERT INTO clean_particion.tabla_ufo_2014 VALUES (NEW.*);
+  ELSEIF (NEW.anio = '2015') THEN INSERT INTO clean_particion.tabla_ufo_2015 VALUES (NEW.*);
+  END IF;
+  RETURN NULL;
+END;$BODY$
+LANGUAGE 'plpgsql';
+
+ALTER FUNCTION clean_particion.ufo_anio_function() OWNER TO postgres;
+```
+
+17. Creamos el trigger para el particionamiento en el esquema _clean_.
+
+```
+CREATE TRIGGER clean_ufo_anio_trigger
+  BEFORE INSERT ON clean.tabla_ufo
+  FOR EACH ROW EXECUTE PROCEDURE clean_particion.ufo_anio_function();
+```
+
+
+Con los pasos anteriores ya tenemos creada nuestra `base_ufo`, con la tabla `tabla_ufo` en el esquema _dirty_ que ya tiene la información original y también ya se tiene lista la `tabla_ufo` en el esquema _clean_ donde se cargará la información que resulte del proceso de limpieza.
