@@ -1,0 +1,265 @@
+---
+title: "Proyecto 02"
+author: "Lizbeth Contreras"
+output: pdf_document
+---
+
+#Reporte de los alumnos pertenecientes al Programa de Posgrado en Economía, Sede Facultad de Economía, UNAM
+
+La información utilizada para generar el siguiente reporte comprende el periodo 2006-2015
+
+El Programa de Posgrado en Economía comprende las ramas de Maestria y Doctorado.
+
+* En Maestria se tienen registrados cuatro planes: 461, 462, 4040, 4100
+* En Doctorado se tienen registrados cuatro planes: 581, 5040, 5100, 5123, 
+
+Durante estos años el Posgrado ha pasado por más de 5 administraciones y por tanto la forma en la cual se ha llevado el control sobre la información de los alumnos es totalmente variada.
+
+En la Reunión de Comité Académico celebrada en el mes de Febrero se le solicitó al Posgrado que entregara la siguiente información para los alumnos de maestría y doctorado:
+
+* Número de alumnos por generación
+* Número de alumnos por plan de estudios
+* Alumnos que han ingresado a más de un plan de estudios
+* Número de alumnos titulados por año
+* Mes en el que más se titulan
+ 
+###Número de alumnos por plan
+
+** Maestría en Economía**
+
+```{r, echo=FALSE, warning=FALSE, message=FALSE}
+library(graphics)
+Plan = c(461, 462, 4040, 4100)
+Frecuencia = c(2, 2, 287, 251)
+
+df = data.frame(Plan, Frecuencia)
+df
+
+barplot(Frecuencia, xlab = "Plan", ylab = "Frecuencia", names.arg = Plan, col = '84')
+
+```
+
+** Doctorado en Economía**
+
+```{r, echo=FALSE, warning=FALSE, message=FALSE}
+Plan = c(581, 5040, 5100, 5123)
+Frecuencia = c(6, 230, 75, 159)
+
+df = data.frame(Plan, Frecuencia)
+df
+
+barplot(Frecuencia, xlab = "Plan", ylab = "Frecuencia", names.arg = Plan, col = '84')
+```
+
+###Número de alumnos por generación
+
+#### Plan 461. Maestría en Economía
+
+```{r, echo=FALSE, warning=FALSE, message=FALSE}
+Generación = c("2012-2", "2014-1")
+Frecuencia = c(1,1)
+
+df = data.frame(Generación, Frecuencia)
+df
+
+barplot(Frecuencia, xlab = "Generación", ylab = "Frecuencia", names.arg = Generación, col = '84')
+```
+
+#### Plan 462. Maestría en Economía
+
+```{r, echo=FALSE, warning=FALSE, message=FALSE}
+Generación = c("2009-1", "2015-1")
+Frecuencia = c(1,1)
+
+df = data.frame(Generación, Frecuencia)
+df
+
+barplot(Frecuencia, xlab = "Generación", ylab = "Frecuencia", names.arg = Generación, col = '84')
+```
+
+#### Plan 4040. Maestría en Economía
+
+```{r, echo=FALSE, warning=FALSE, message=FALSE}
+Generación = c("2005-2", "2006-1", "2007-1", "2008-1", "2009-1", "2010-1", "2011-1")
+Frecuencia = c(37, 28, 28, 80, 46, 33, 35)
+
+df = data.frame(Generación, Frecuencia)
+df
+
+barplot(Frecuencia, xlab = "Generación", ylab = "Frecuencia", names.arg = Generación, col = '84')
+```
+
+#### Plan 4100. Maestría en Economía
+
+```{r, echo=FALSE, warning=FALSE, message=FALSE}
+Generación = c("2011-2", "2012-1", "2013-1", "2014-1", "2015-1")
+Frecuencia = c(64, 35, 48, 56, 48)
+
+df = data.frame(Generación, Frecuencia)
+df
+
+barplot(Frecuencia, xlab = "Generación", ylab = "Frecuencia", names.arg = Generación, col = '84')
+```
+
+#### Plan 581. Doctorado en Economía
+
+```{r, echo=FALSE, warning=FALSE, message=FALSE}
+Generación = c("2007-2", "2008-2", "2010-1", "2012-2", "2014-1")
+Frecuencia = c(1, 1, 1, 1, 2)
+
+df = data.frame(Generación, Frecuencia)
+df
+
+barplot(Frecuencia, xlab = "Generación", ylab = "Frecuencia", names.arg = Generación, col = '84')
+```
+
+#### Plan 5040. Doctorado en Economía
+
+```{r, echo=FALSE, warning=FALSE, message=FALSE}
+Generación = c("2005-2", "2006-1", "2006-2", "2007-1", "2007-2", "2008-1", "2008-2", "2009-1", "2009-2", "2010-1", "2010-2")
+Frecuencia = c(51, 18, 6, 23, 15, 13, 10, 21, 19, 32, 22)
+
+df = data.frame(Generación, Frecuencia)
+df
+
+barplot(Frecuencia, xlab = "Generación", ylab = "Frecuencia", names.arg = Generación, col = '84')
+```
+
+#### Plan 5100. Doctorado en Economía
+
+```{r, echo=FALSE, warning=FALSE, message=FALSE}
+Generación = c("2011-2")
+Frecuencia = c(75)
+
+df = data.frame(Generación, Frecuencia)
+df
+
+barplot(Frecuencia, xlab = "Generación", ylab = "Frecuencia", names.arg = Generación, col = '84')
+```
+
+#### Plan 5123. Doctorado en Economía
+
+```{r, echo=FALSE, warning=FALSE, message=FALSE}
+Generación = c("2012-1", "2012-2", "2013-1", "2013-2", "2014-1", "2014-2")
+Frecuencia = c(50, 36, 3, 34, 1, 35)
+
+df = data.frame(Generación, Frecuencia)
+df
+
+barplot(Frecuencia, xlab = "Generación", ylab = "Frecuencia", names.arg = Generación, col = '84')
+```
+
+##Número de alumnos titulados por año y por mes
+
+```{r, echo=FALSE, warning=FALSE, message=FALSE}
+library (openair)
+library (tidyr)
+library(car)
+
+fecha <- read.table("~/grado.txt", header=TRUE, quote="\"")
+
+fecha2 <- separate(fecha, col = fecha_grado, into=c("day","month","year"), sep ='/')
+
+fecha2$mes <- as.numeric(fecha2$month)
+
+fecha2$mes = recode (fecha2$mes, "01='01enero'; 02='02febrero'; 03='03marzo'; 04='04abril'; 05='05mayo'; 06='06junio'; 07='07julio'; 08='08agosto'; 09='09septiembre'; 10='10octubre'; 11='11noviembre'; 12='12diciembre'")
+
+año <- data.frame(table(fecha2$year))
+año
+
+mes <- data.frame(table(fecha2$mes))
+mes
+```
+
+##Número de alumnos titulados por programa
+
+**Maestría**
+
+```{r, echo=FALSE, warning=FALSE, message=FALSE}
+Plan = c(4040, 4100)
+Frecuencia = c(471, 166)
+
+df = data.frame(Plan, Frecuencia)
+df
+
+barplot(Frecuencia, xlab = "Plan", ylab = "Frecuencia", names.arg = Plan, col = '84')
+```
+
+**Doctorado**
+
+```{r, echo=FALSE, warning=FALSE, message=FALSE}
+Plan = c(581, 5040, 5100)
+Frecuencia = c(2, 347, 32)
+
+df = data.frame(Plan, Frecuencia)
+df
+
+barplot(Frecuencia, xlab = "Plan", ylab = "Frecuencia", names.arg = Plan, col = '84')
+```
+
+##Egreso curricular del programa de Maestría
+
+
+### Plan 462. Maestría en Economía
+
+```{r, echo=FALSE, warning=FALSE, message=FALSE}
+Años = c(0, 2)
+Alumnos = c(1, 2)
+
+df = data.frame(Años, Alumnos)
+df
+
+barplot(Alumnos, xlab = "Años", ylab = "Alumnos", names.arg = Alumnos, col = '84')
+#El plan 462 reporta una baja
+```
+
+### Plan 4040. Maestría en Economía
+
+```{r, echo=FALSE, warning=FALSE, message=FALSE}
+Años = c(0, 2, 3, 4, 5, 6, 8)
+Alumnos = c(62, 181, 609, 41, 10, 6, 5)
+
+df = data.frame(Años, Alumnos)
+df
+
+barplot(Alumnos, xlab = "Años", ylab = "Alumnos", names.arg = Años, col = '84')
+
+#El plan 4040 reporta 62 bajas
+
+```
+
+### Plan 4100. Maestría en Economía
+
+```{r, echo=FALSE, warning=FALSE, message=FALSE}
+Años = c(0, 2, 3, 4)
+Alumnos = c(92, 242, 312, 11)
+
+df = data.frame(Años, Alumnos)
+df
+
+barplot(Alumnos, xlab = "Años", ylab = "Alumnos", names.arg = Alumnos, col = '84')
+
+#El plan 4100 reporta 92 bajas
+```
+
+##Número de alumnos titulados por año y por mes
+
+```{r, echo=FALSE, warning=FALSE, message=FALSE}
+library (openair)
+library (tidyr)
+library(car)
+
+fecha <- read.table("~/grado.txt", header=TRUE, quote="\"")
+
+fecha2 <- separate(fecha, col = fecha_grado, into=c("day","month","year"), sep ='/')
+
+fecha2$mes <- as.numeric(fecha2$month)
+
+fecha2$mes = recode (fecha2$mes, "01='01enero'; 02='02febrero'; 03='03marzo'; 04='04abril'; 05='05mayo'; 06='06junio'; 07='07julio'; 08='08agosto'; 09='09septiembre'; 10='10octubre'; 11='11noviembre'; 12='12diciembre'")
+
+año <- data.frame(table(fecha2$year))
+año
+
+mes <- data.frame(table(fecha2$mes))
+mes
+```
