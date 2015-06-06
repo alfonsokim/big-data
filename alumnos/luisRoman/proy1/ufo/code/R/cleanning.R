@@ -68,7 +68,7 @@ for(i in 1:nrow(data)){
 }
 data$scale <- NULL
 # Eliminar columnas no necesarias para los fines de este proyecto.
-data <- data[,c(1,2,4,5,6,8)]
+data <- data[,-3]
 # Seleccionamos únicamente aquellos datos que aparecen en EUA
 # Abreviaciones USA
 con <- file("./data/input/abrevs.txt")
