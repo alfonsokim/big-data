@@ -1,0 +1,342 @@
+---
+title: "Proyecto_2_bigdata"
+author: "Augusto Hernández"
+date: "06/06/2015"
+output: html_document
+---
+
+###UFO
+
+Para la primera parte del trabajo requiere del uso de postgresql. Para ello, fue necesaria la instalación del programa en un contenedor de docker y la configuración de postgres.conf para su mayor eficiencia. Sin embargo, ara esta base no es necesario.
+
+Lo primero que se hace es crear una base de datos para trabajar en psql, mediante el comando 
+
+$createdb ufosql 
+
+Posteriormente accesamos a psql mediante la base:
+$psql ufosql 
+
+Usamos los siguintes comandos para crear la tabla con la que vamos a jugar con los datos
+
+DROP TABLE IF EXISTS ufosql CASCADE;
+
+CREATE TABLE ufosql (
+id int,
+datetime timestamp,
+date date,
+time varchar,
+dia varchar,
+state varchar,
+shape varchar, 
+duration varchar);
+
+copiamos a postgresql desde un archivo.csv, después de haber limpiado usando bash, ya que el comando de /copy no funciona ti un registro incluye más columnas que las contempladas
+
+\copy ufosql (id, datetime, date, time, dia, state, shape, duration) FROM 'dataufo_ar2.csv' with delimiter ',' header csv;
+
+e indexamos las variables:
+
+CREATE INDEX datetime_id on ufosql (datetime);
+CREATE INDEX dia_id on ufosql (dia);
+CREATE INDEX state_id on ufosql (state);
+CREATE INDEX shape_id on ufosql (shape);
+CREATE INDEX duration_id on ufosql (duration);--No conviene hacerlo por la cantidad de posibles valores
+
+### Preguntas a responder
+
+Lo primero que buscamos es el primer avistamiento por estado y por forma, por lo que usamos los siguientes comandos
+
+SELECT MIN(date), state FROM ufosql
+GROUP BY state
+ORDER BY state;
+
+
+min     | state 
+------------+-------
+ 1970-04-15 | AB
+ 1969-07-05 | AK
+ 1969-07-01 | AL
+ 1969-04-21 | AR
+ 1969-07-01 | AZ
+ 1969-06-01 | BC
+ 1969-04-05 | CA
+ 1969-06-01 | CO
+ 1969-05-01 | CT
+ 1974-06-06 | DC
+ 1969-10-15 | DE
+ 1969-01-04 | FL
+ 1969-04-01 | GA
+ 1969-04-15 | HI
+ 1969-07-10 | IA
+ 1973-07-24 | ID
+ 1969-03-01 | IL
+ 1969-02-15 | IN
+ 1969-08-15 | KS
+ 1969-06-01 | KY
+ 1969-01-01 | LA
+ 1969-06-30 | MA
+ 1969-08-07 | MB
+ 1969-05-01 | MD
+ 1969-08-27 | ME
+ 1969-06-01 | MI
+ 1969-07-01 | MN
+ 1969-05-15 | MO
+ 1969-06-01 | MS
+ 1969-01-15 | MT
+ 1969-01-15 | NA
+ 1970-08-15 | NB
+ 1969-07-27 | NC
+ 1970-07-20 | ND
+ 1969-03-01 | NE
+ 1975-01-01 | NF
+ 1969-10-15 | NH
+ 1969-03-01 | NJ
+ 1970-12-05 | NM
+ 1970-08-14 | NS
+ 1978-06-01 | NT
+ 1969-01-01 | NV
+ 1969-06-01 | NY
+ 1969-05-01 | OH
+ 1969-03-15 | OK
+
+
+SELECT MIN(date), shape FROM ufosql
+GROUP BY shape
+ORDER BY shape;
+
+
+  min     |   shape   
+------------+-----------
+ 1969-06-30 | Changing
+ 1970-09-15 | Chevron
+ 1969-02-12 | Cigar
+ 1969-06-01 | Circle
+ 1969-06-30 | Cone
+ 1997-03-22 | Crescent
+ 1969-03-15 | Cross
+ 1969-04-21 | Cylinder
+ 1974-07-18 | Delta
+ 1970-09-15 | Diamond
+ 1969-01-20 | Disk
+ 1996-03-15 | Dome
+ 1969-06-30 | Egg
+ 1969-07-11 | Fireball
+ 1997-11-30 | Flare
+ 1969-07-15 | Flash
+ 1969-06-01 | Formation
+ 1997-12-16 | Hexagon
+ 1969-01-15 | Light
+ 1969-06-30 | NA
+ 1969-01-01 | Other
+ 1969-01-04 | Oval
+ 1969-01-15 | Rectangle
+ 1995-12-14 | Round
+ 1969-01-15 | Sphere
+ 1971-07-22 | Teardrop
+ 1969-01-01 | Triangle
+ 1969-01-01 | Unknown
+ 1996-06-24 | changed
+ 1996-10-30 | cigar
+ 1978-01-09 | circle
+ 1976-08-15 | cylinder
+ 1997-10-10 | delta
+ 1996-06-13 | diamond
+ 1997-05-05 | egg
+ 1995-09-28 | fireball
+ 1997-03-15 | flash
+ 1995-05-03 | light
+ 1997-02-15 | other
+ 1997-06-24 | oval
+ 1997-01-11 | pyramid
+ 1979-01-31 | rectangle
+ 1997-03-16 | sphere
+ 1995-05-15 | triangle
+ 1997-10-18 | unknown
+
+Obtenemos el promedio por mes:
+
+SELECT AVG(count), month
+FROM(
+  SELECT COUNT(*) AS count, extract(month from date) as month, extract (year from date) as year
+	FROM ufosql
+	GROUP BY year, month) AS count
+GROUP BY month
+ORDER BY month;
+
+         avg          | month 
+----------------------+-------
+ 107.8750000000000000 |     1
+ 101.5909090909090909 |     2
+ 109.5238095238095238 |     3
+ 101.4545454545454545 |     4
+ 100.9130434782608696 |     5
+ 143.2000000000000000 |     6
+ 182.0000000000000000 |     7
+ 178.8500000000000000 |     8
+ 160.6500000000000000 |     9
+ 143.5000000000000000 |    10
+ 120.5217391304347826 |    11
+  93.6086956521739130 |    12
+
+Obtenemos el promedio por año:
+
+SELECT AVG(count), year
+FROM(
+  SELECT COUNT(*) AS count, extract (year from date) as year, extract (month from date)
+	FROM ufosql
+	GROUP BY year, month) AS count
+GROUP BY year
+ORDER BY year;
+
+
+          avg           | year 
+------------------------+------
+    15.1666666666666667 | 1969
+    14.5000000000000000 | 1970
+    11.8333333333333333 | 1971
+    16.8333333333333333 | 1972
+    21.9166666666666667 | 1973
+    25.5833333333333333 | 1974
+    30.4166666666666667 | 1975
+    27.0833333333333333 | 1976
+    25.2500000000000000 | 1977
+    32.0000000000000000 | 1978
+    23.5833333333333333 | 1979
+    21.8750000000000000 | 1980
+ 1.00000000000000000000 | 1986
+ 1.00000000000000000000 | 1990
+    24.5000000000000000 | 1994
+   120.7500000000000000 | 1995
+    83.1666666666666667 | 1996
+   117.9166666666666667 | 1997
+   167.0000000000000000 | 1998
+   169.7500000000000000 | 1999
+   181.4444444444444444 | 2000
+   290.8181818181818182 | 2001
+   339.1250000000000000 | 2004
+   214.4285714285714286 | 2005
+ 1.00000000000000000000 | 2006
+   357.3333333333333333 | 2008
+   405.4166666666666667 | 2009
+ 1.00000000000000000000 | 2010
+   687.5000000000000000 | 2014
+   349.0000000000000000 | 2015
+
+Obtenemos los promedios por estado:
+
+
+SELECT AVG(count), state
+FROM(
+         SELECT COUNT(*) AS count, state, extract(month from date) as month, extract (year from date) as year 
+	 FROM ufosql
+	 GROUP BY state, month, year) AS count
+GROUP BY state
+ORDER BY state;
+ avg           | state 
+------------------------+-------
+    17.9773755656108597 | CA
+    12.0308370044052863 | NA
+    11.2272727272727273 | WA
+     9.6524064171122995 | FL
+     8.7959183673469388 | AZ
+     8.0157068062827225 | TX
+     7.4640883977900552 | NY
+     6.5094339622641509 | IL
+     6.4104046242774566 | PA
+     6.3043478260869565 | OH
+     6.0774647887323944 | OR
+     5.4642857142857143 | NC
+     5.1691176470588235 | CO
+     5.1049382716049383 | MI
+     4.4864864864864865 | SC
+     4.4577464788732394 | NJ
+     4.4335664335664336 | MO
+     4.3703703703703704 | GA
+     4.2957746478873239 | ON
+     4.2213740458015267 | WI
+     4.0349650349650350 | VA
+     4.0138888888888889 | MA
+     3.9541984732824427 | TN
+     3.9347826086956522 | IN
+     3.5714285714285714 | MN
+     3.4782608695652174 | MD
+     3.4471544715447154 | NV
+     3.0000000000000000 | NM
+     2.9760000000000000 | KY
+     2.8432835820895522 | CT
+     2.7818181818181818 | OK
+     2.7377049180327869 | AL
+     2.6608695652173913 | LA
+     2.6538461538461538 | UT
+     2.6354166666666667 | ID
+     2.6238532110091743 | BC
+     2.5400000000000000 | NH
+     2.5247524752475248 | IA
+     2.4672897196261682 | KS
+     2.4021739130434783 | WV
+     2.3972602739726027 | HI
+     2.3500000000000000 | AR
+     2.3225806451612903 | MT
+     2.2222222222222222 | ME
+     2.1846153846153846 | AB
+
+ y la desviación estandar:
+ 
+ SELECT stddev(count) as desviacion, state
+FROM(
+         SELECT COUNT(*) AS count, state, extract(month from date) as month, extract (year from date) as year 
+	 FROM ufosql
+	 GROUP BY state, month, year) AS count
+GROUP BY state
+ORDER BY desviacion desc;
+ 
+ desviacion       | state 
+------------------------+-------
+    21.1974362598434889 | CA
+    13.8488656672586386 | NA
+    13.5896874280859337 | FL
+    11.3093915690605417 | WA
+    10.0471073841086726 | AZ
+     9.6060818844752894 | IL
+     9.2892352276383386 | PA
+     8.9803741803361494 | TX
+     8.5813158064436829 | NY
+     7.7914462012282358 | SC
+     7.1423415963016547 | OH
+     6.6898513434094148 | NC
+     5.9633323347112197 | OR
+     5.2969087723642918 | MI
+     5.1489735000847658 | CO
+     5.1059531259588222 | GA
+     5.0817755866012193 | NJ
+     5.0576897226130163 | MA
+     4.8925920440281852 | MO
+     4.6976510387841274 | ON
+     4.3752627636887362 | WI
+     4.0977232805282162 | IN
+     4.0739858107377817 | VA
+     3.7844275241753645 | MD
+     3.7454846567769434 | TN
+     3.6053927862102824 | MN
+     3.2254470654360187 | NM
+     3.0689144679154178 | AL
+     3.0456538184984912 | CT
+     3.0403339974698276 | LA
+     2.7852163939609536 | NV
+     2.7071826165403481 | ID
+     2.6644687912216085 | NH
+     2.6041653978491533 | KY
+     2.5151746461749003 | HI
+     2.4396639044423446 | OK
+     2.3285227825004962 | BC
+     2.0664332456353149 | KS
+     2.0133979912692869 | UT
+     1.9680120753571999 | MT
+     1.9266242986422682 | IA
+     1.8872608362193544 | WV
+     1.8460860832145607 | DE
+     1.8051501262202948 | ME
+     1.7887132105217285 | AR
+
+
+Con esto observamos que los estados con mayores promedios de avistamientos son los que tienen mayor desviación estandar. Asimismo, los promedios anuales nos muestran un incremento constrante año con año. Por último, se observa que Julio es el mes con más avistamientos.
