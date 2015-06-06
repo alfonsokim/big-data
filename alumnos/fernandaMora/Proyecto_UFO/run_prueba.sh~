@@ -1,0 +1,16 @@
+#!/bin/bash
+
+#	  en la terminal para hacerlo ejecutable
+
+for i in *.html; do
+    cat $i | python2.7 html_to_csv.py  > $i.csv
+    cat $i.csv | sed "1 d" >> UFOS.csv
+done 
+
+#Uniendo en una misma línea la columna de descripción
+sed ':a;N;$!ba;s/\n/ /g' UFOS.csv | grep '.' > UFOS_limpio.csv  
+#quitamos saltos de línea en última columna y líneas blancas duplicadas
+
+
+#echo -e "Separando fecha y hora: "
+cat UFOS_limpio.csv | R separa.R

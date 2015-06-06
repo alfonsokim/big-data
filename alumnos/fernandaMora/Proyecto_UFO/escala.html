@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    <title>Analisis exploratorio historico de avistamientos de UFOs</title>
+    <link type="text/css" rel="stylesheet" href="assets/css/bootstrap.css"/>
+    <style>
+      body {
+        background-color: #f6f6f6;
+        padding-top: 30px;
+      }
+      .main {
+        background-color: #fff;
+        border: 1px solid #CCC;
+        padding: 40px;
+      }
+      .container {
+        width: 1100px;
+      }
+      .nav-list {
+        font-size: 17px;
+      }
+      .nav-header {
+        font-size: 17px;
+        text-transform: none;
+        line-height: 30px;
+      }
+    </style>
+    <link type="text/css" rel="stylesheet" href="assets/css/bootstrap-responsive.css"/>
+    <link type="text/css" rel="stylesheet" href="assets/css/hljs-github.min.css"/>
+  </head>
+<body>
+
+  <div class="container-fluid">
+    <div class="row-fluid">
+      <div class="span3"><ul class="nav nav-list">
+    <li><a href="#analisis-exploratorio-historico-de-avistamientos-de-ufos">Analisis exploratorio historico de avistamientos de UFOs</a></li>
+    <li><a href="#-proyecto-metodos-de-gran-escala-">_Proyecto Metodos de Gran Escala_</a></li>
+    <li><a href="#fernanda-mora--marzo-2015">Fernanda Mora, Marzo 2015</a></li>
+    <li><a href="#introduccion">Introduccion</a></li>
+    <li><a href="#descripcion-de-los-datos">Descripcion de los datos</a></li>
+    <li><a href="#scraping--distribucion-en-las-maquinas-de-amazon">Scraping: Distribucion en las maquinas de Amazon</a></li>
+    <li><a href="#cleaning">Cleaning</a></li>
+    <li><a href="#estadisticas-de-avistamientos">Estadisticas de avistamientos</a></li>
+</ul>
+      </div>
+      <div class="span9 main"><h1 id="analisis-exploratorio-historico-de-avistamientos-de-ufos">Analisis exploratorio historico de avistamientos de UFOs</h1>
+<h3 id="_proyecto-metodos-de-gran-escala_"><em>Proyecto Metodos de Gran Escala</em></h3>
+<hr>
+<p class="img-container"><img src="/home/sophie/DS Resources/MK styles/output/ufo.jpg" alt="Texto Alternativo"></p>
+<hr>
+<h4 id="fernanda-mora-marzo-2015">Fernanda Mora, Marzo 2015</h4>
+<hr>
+<h3 id="introduccion">Introduccion</h3>
+<blockquote>
+<p>“<strong>In God we trust. All others must bring data.</strong>” 
+   W. Edwards Deming, statistician, professor, author, lecturer, and consultant.</p>
+</blockquote>
+<p>En este documento se realiza un analisis exploratorio de todos los avistamientos de UFOs en los Estados Unidos.
+Esta dividio en 3 partes:</p>
+<ul class="list">
+<li>Descripcion de los datos</li>
+<li>Scraping: distribucion en las maquinas de Amazon</li>
+<li>Scraping: .html a .csv</li>
+<li>Cleaning</li>
+<li>Estadisticas de avistamientos</li>
+<li>Serie temporal de avistamientos: script y grafica</li>
+<li>Serie espacio-temporal de avistamientos</li>
+</ul>
+<h3 id="descripcion-de-los-datos">Descripcion de los datos</h3>
+<p>Los datos corresponden a los avistamientos de UFOS hechos por personas desde casi 1400-2015. La 
+mayoria de las observaciones corresponden a Estados Unidos pero tambien hay observaciones 
+de Canada.</p>
+<p>Las variables de los registros son las siguientes: _Date / Time, City, State, Shape, Duration, Summary, 
+y Posted.</p>
+<h3 id="scraping-distribucion-en-las-maquinas-de-amazon">Scraping: Distribucion en las maquinas de Amazon</h3>
+<p>El scraping se refiere a la extraccion de informacion de la red. Para bajar los archivos se uso la 
+siguiente instruccion que nos permite guardar todos los URLs:</p>
+<p>```curl <a href="http://www.nuforc.org/webreports/ndxevent.html">http://www.nuforc.org/webreports/ndxevent.html</a> | grep -oE &quot;ndxe[0-9]{1,8}.html&quot; &gt; urls.csv</p>
+<pre class="hljs"><code>
+Posteriormente completamos <span class="hljs-keyword">la</span> direccion:  
+
+``` <span class="hljs-keyword">cat</span> urls.csv | sed 's/<span class="hljs-keyword">n</span>/www.nuforc.org\/webreports\/<span class="hljs-keyword">n</span>/<span class="hljs-keyword">g</span>'&gt; urlscompletos.csv</code></pre><p>Esto se hizo usando 4 maquinas de Amazon  que fueron configuradas en la pagina de AWS. A lo largo
+de la instalacion se creo un usuario y se adquirieron permisos (archivo.pem). Una vez configuradas las
+maquinas, se bajo parallel en cada una. Posteriormente se agrega este archivo en cada servidor para asignar locales:
+LC_ALL=&quot;en_US.UTF-8&quot; en la carpeta de /etc/environment.</p>
+<p>Finalmente bajamos los archivos usando <em>Parallel</em>::</p>
+<p>``` cat urlscompletos.csv | parallel -S ubuntu@52.11.75.230 -S ubuntu@52.11.75.88 -S ubuntu@52.11.72.238 -S ubuntu@52.11.20.202 wget -c</p>
+<pre class="hljs"><code>
+<span class="hljs-comment">### Scraping: .html a .csv</span>
+Una vez que bajamos todos los htmls de los avistamientos, realizamos una rutina en __Beutiful Soup__ de  _Python_ 
+que nos convierte un archivo tipo .html a uno .csv.  Esta rutina lee desde el stdinput  un html y genera en el stdoutput 
+un nuevo archivo tipo .csv  de tal manera que la podamos usar desde la terminal con Bash como veremos abajo:
+
+```python
+<span class="hljs-comment">#Rutina que convierte un html dado  en el  stdin y lo convierte a un csv al stdout</span>
+<span class="hljs-keyword">from</span> bs4 <span class="hljs-keyword">import</span> BeautifulSoup
+<span class="hljs-keyword">import</span> csv
+<span class="hljs-keyword">import</span> sys
+<span class="hljs-keyword">import</span> re
+
+<span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">cell_text</span><span class="hljs-params">(cell)</span>:</span>
+    <span class="hljs-keyword">return</span> <span class="hljs-string">" "</span>.join(cell.stripped_strings)
+
+soup = BeautifulSoup(sys.stdin.read())
+output = csv.writer(sys.stdout)
+
+<span class="hljs-keyword">for</span> table <span class="hljs-keyword">in</span> soup.find_all(<span class="hljs-string">'table'</span>):
+    <span class="hljs-keyword">for</span> row <span class="hljs-keyword">in</span> table.find_all(<span class="hljs-string">'tr'</span>):
+        col = map(cell_text, row.find_all(re.compile(<span class="hljs-string">'t[dh]'</span>)))
+        output.writerow(col)
+    output.writerow([])</code></pre><p>Posteriormente, con Bash hicimos un loop en nuestra carpeta de avistamientos y le aplicamos la rutina anterior
+a cada uno de nuestros archivos. Ya para terminar el scrapping creamos un nuevo archivo con todos los .csvs 
+generados.</p>
+<pre class="hljs"><code><span class="hljs-keyword">for</span> <span class="hljs-built_in">i</span> in *.html; do
+    <span class="hljs-built_in">cat</span> $<span class="hljs-built_in">i</span> | python2<span class="hljs-number">.7</span> html_to_csv.py  &gt; $<span class="hljs-built_in">i</span>.csv
+    <span class="hljs-built_in">cat</span> $<span class="hljs-built_in">i</span>.csv &gt;&gt; UFOS.csv
+done 
+
+<span class="hljs-built_in">cat</span> UFOS.csv | sed <span class="hljs-string">'/Date/,/Posted/d'</span> | grep <span class="hljs-string">'.'</span>  &gt; UFOS2.csv
+<span class="hljs-built_in">cat</span> UFOS.csv | head -<span class="hljs-number">1</span> &gt; head.csv
+<span class="hljs-built_in">cat</span> head.csv UFOS2.csv &gt; dataClean.csv</code></pre><h3 id="cleaning">Cleaning</h3>
+<p>Esta seccion se realizo en R porque este lenguaje tiene librerias que trabajan muy bien con los dataframes.
+Primero cargamos los paquetes que necesitaremos:</p>
+<pre class="hljs"><code><span class="hljs-function"><span class="hljs-title">library</span><span class="hljs-params">(ggplot2)</span></span>
+<span class="hljs-function"><span class="hljs-title">library</span><span class="hljs-params">(tidyr)</span></span>
+<span class="hljs-function"><span class="hljs-title">library</span><span class="hljs-params">(dplyr)</span></span>
+<span class="hljs-function"><span class="hljs-title">library</span><span class="hljs-params">(stringr)</span></span></code></pre><p>Posteriormente leemos los  datos:</p>
+<pre class="hljs"><code><span class="hljs-function"><span class="hljs-title">setwd</span><span class="hljs-params">(<span class="hljs-string">"/home/sophie/ITAM/metodosGranEscala/proyectos/1er_proyecto/pruebacsv/"</span>)</span></span>
+base &lt;- read.<span class="hljs-function"><span class="hljs-title">csv</span><span class="hljs-params">(<span class="hljs-string">"../dataClean.csv"</span>,stringsAsFactors=FALSE, na.strings = c(<span class="hljs-string">"NA"</span>,<span class="hljs-string">""</span>)</span></span>)
+write.<span class="hljs-function"><span class="hljs-title">csv</span><span class="hljs-params">(data,<span class="hljs-string">"../dataCleanFinal.csv"</span>, row.names = FALSE)</span></span></code></pre><p>Separamos la 1er columna en fecha y hora:</p>
+<pre class="hljs"><code><span class="hljs-built_in">data</span><span class="hljs-subst">&lt;-</span> separate(base ,<span class="hljs-built_in">Date</span><span class="hljs-attribute">...</span>Time,c(<span class="hljs-string">"date"</span>,<span class="hljs-string">"time"</span>), sep <span class="hljs-subst">=</span> <span class="hljs-string">"[[:blank:]]"</span>, extra <span class="hljs-subst">=</span> <span class="hljs-string">"drop"</span>)</code></pre><p>Cambiamos nombre a columnas:</p>
+<pre class="hljs"><code><span class="hljs-function"><span class="hljs-title">names</span><span class="hljs-params">(data)</span></span> &lt;- <span class="hljs-function"><span class="hljs-title">tolower</span><span class="hljs-params">(names(data)</span></span>)</code></pre><p>Luego convertimos fechas a tipo fecha:</p>
+<pre class="hljs"><code><span class="hljs-keyword">data</span><span class="hljs-variable">$date</span>       &lt;- as.Date(<span class="hljs-keyword">data</span><span class="hljs-variable">$date</span>,
+                                        <span class="hljs-string">"%m/%d/%y"</span>)
+<span class="hljs-keyword">data</span><span class="hljs-variable">$date</span>[str_detect(<span class="hljs-keyword">data</span><span class="hljs-variable">$date</span>,<span class="hljs-string">"20[2-9]{1}[0-9]{1}"</span>)] &lt;-
+str_replace(<span class="hljs-keyword">data</span><span class="hljs-variable">$date</span>[str_detect(<span class="hljs-keyword">data</span><span class="hljs-variable">$date</span>,<span class="hljs-string">"20[2-9]{1}[0-9]{1}"</span>)],<span class="hljs-string">"^20"</span>,<span class="hljs-string">"19"</span>)
+<span class="hljs-keyword">data</span><span class="hljs-variable">$posted</span>    &lt;- as.Date(<span class="hljs-keyword">data</span><span class="hljs-variable">$posted</span>,
+                                      <span class="hljs-string">"%m/%d/%y"</span>)
+<span class="hljs-keyword">data</span><span class="hljs-variable">$posted</span>[str_detect(<span class="hljs-keyword">data</span><span class="hljs-variable">$posted</span>,<span class="hljs-string">"20[2-9]{1}[0-9]{1}"</span>)] &lt;-
+str_replace(<span class="hljs-keyword">data</span><span class="hljs-variable">$posted</span>[str_detect(<span class="hljs-keyword">data</span><span class="hljs-variable">$posted</span>,<span class="hljs-string">"20[2-9]{1}[0-9]{1}"</span>)],<span class="hljs-string">"^20"</span>,<span class="hljs-string">"19"</span>)</code></pre><p>Ya con esto nuestra base de datos queda lista para el analisis.</p>
+<h3 id="estadisticas-de-avistamientos">Estadisticas de avistamientos</h3>
+<p>Podriamos haber hecho en  Bash los conteos requeridos como vimos en clase, por ejemplo:</p>
+<pre class="hljs"><code><span class="hljs-built_in">echo</span> <span class="hljs-operator">-e</span> <span class="hljs-string">"El número total de avistamientos es: "</span>
+cat dataClean.csv | wc <span class="hljs-operator">-l</span></code></pre><pre class="hljs"><code><span class="hljs-built_in">echo</span> <span class="hljs-operator">-e</span> <span class="hljs-string">"El top 5 de estados es: "</span>
+cut <span class="hljs-operator">-d</span><span class="hljs-string">','</span> <span class="hljs-operator">-f</span>3 UFOS_limpio.csv | sort -t <span class="hljs-string">","</span> -k <span class="hljs-number">3</span> | awk -F<span class="hljs-string">'\t+'</span> <span class="hljs-string">'NF == 1'</span>| uniq -c | sort -nr | head -<span class="hljs-number">5</span></code></pre><p>Sin embargo optamos por  hacerlo todo en R.</p>
+<p>Primero hacemos conteo de frecuencias y eliminamos datos faltantes. Sin embargo sabemos que 
+los datos faltantes tienen un tratamiento tecnico estadistico, pero por salirse de los  alcances y 
+objetivos  del proyecto, lo dejamos fuera:</p>
+<pre class="hljs"><code>data &lt;- na.<span class="hljs-function"><span class="hljs-title">omit</span><span class="hljs-params">(data)</span></span>
+data_state &lt;- plyr::<span class="hljs-function"><span class="hljs-title">count</span><span class="hljs-params">(data<span class="hljs-variable">$state</span>)</span></span></code></pre><p>¿Cuántas observaciones totales?: 82,335.</p>
+<pre class="hljs"><code><span class="hljs-function"><span class="hljs-title">nrow</span><span class="hljs-params">(data)</span></span></code></pre><p>Para responder, ¿Cuál es el top 5 de estados?:</p>
+<pre class="hljs"><code>head(dat<span class="hljs-built_in">a_state</span>[order(dat<span class="hljs-built_in">a_state</span>[,<span class="hljs-number">2</span>], decreasing = <span class="hljs-literal">TRUE</span>),], <span class="hljs-number">5</span>)</code></pre><p>Y los estados con mas avistamientos son California y Florida:</p>
+<p><table>
+    <caption>Top 5 estados con observaciones</caption>
+    <thead>
+        <tr>
+            <th>x</th>
+            <th>freq</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td>CA</td>
+            <td>10395</td>
+        </tr>
+          <tr>
+            <td>FL</td>
+            <td>4729</td>
+        </tr>
+          <tr>
+            <td>WA</td>
+            <td>4423</td>
+        </tr>
+          <tr>
+            <td>TX</td>
+            <td>4053</td>
+        </tr>
+          <tr>
+            <td>NY</td>
+            <td>3577</td>
+        </tr>
+    </tbody>
+</table>
+<br></p>
+<p>Para responder ¿Cuál es el top 5 de estados por año? hacemos los cortes necesarios::</p>
+<pre class="hljs"><code>data.state.<span class="hljs-built_in">date</span> &lt;- plyr::count(data[,c(<span class="hljs-number">1</span>,<span class="hljs-number">4</span>)])
+dates &lt;- unique(<span class="hljs-built_in">format</span>(data.state.<span class="hljs-built_in">date</span>$<span class="hljs-built_in">date</span>,<span class="hljs-string">"%Y"</span>))
+topDate &lt;- list()
+<span class="hljs-keyword">for</span>(i <span class="hljs-operator">in</span> <span class="hljs-number">1</span>:<span class="hljs-built_in">length</span>(dates)){
+    data.interest &lt;- data.state.<span class="hljs-built_in">date</span>[<span class="hljs-built_in">format</span>(data.state.<span class="hljs-built_in">date</span>$<span class="hljs-built_in">date</span>,<span class="hljs-string">"%Y"</span>)==dates[i],]
+    data.interest &lt;- head(data.interest[order(data.interest[,<span class="hljs-number">3</span>], decreasing = <span class="hljs-constant">TRUE</span>), ], <span class="hljs-number">5</span>)
+    topDate[[i]]  &lt;- data.interest
+}</code></pre><p>Y los top estados es un vector de 86 entradas que corresponden a los años y vemos que California y 
+Florida estan en el top::</p>
+<blockquote>
+<p>topDate[[86]]
+            date state freq</p>
+</blockquote>
+<p><table>
+    <caption>Top 3 estados con observaciones por año</caption>
+    <thead>
+        <tr>
+            <th>x</th>
+            <th>freq</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td>CA</td>
+            <td>11</td>
+        </tr>
+          <tr>
+            <td>FL</td>
+            <td>9</td>
+        </tr>
+          <tr>
+            <td>TX</td>
+            <td>5</td>
+        </tr>
+    </tbody>
+</table>
+<br>
+Posteriormente para responder ¿Cuál es el mes con más avistamientos? ¿El día de la semana?:</p>
+<pre class="hljs"><code>data<span class="hljs-class">.day</span>      &lt;- plyr::<span class="hljs-function"><span class="hljs-title">count</span><span class="hljs-params">(weekdays(data<span class="hljs-variable">$date</span>)</span></span>)
+<span class="hljs-function"><span class="hljs-title">head</span><span class="hljs-params">(data.day[order(data.day<span class="hljs-variable">$freq</span>, decreasing =TRUE)</span></span>,],<span class="hljs-number">5</span>)
+data<span class="hljs-class">.month</span>  &lt;- plyr::<span class="hljs-function"><span class="hljs-title">count</span><span class="hljs-params">(format(data<span class="hljs-variable">$date</span>, <span class="hljs-string">"%m"</span>)</span></span>)
+<span class="hljs-function"><span class="hljs-title">head</span><span class="hljs-params">(data.month[order(data.month<span class="hljs-variable">$freq</span>, decreasing =TRUE)</span></span>,],<span class="hljs-number">5</span>)</code></pre><p>Y podemos ver que julio y agosto son los meses con mas avistamientos:</p>
+<p><table>
+    <caption>Top 5 meses  con observaciones</caption>
+    <thead>
+        <tr>
+            <th>x</th>
+            <th>freq</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td>07</td>
+            <td>10195</td>
+        </tr>
+          <tr>
+            <td>08</td>
+            <td>9067</td>
+        </tr>
+          <tr>
+            <td>06</td>
+            <td>8420</td>
+        </tr>
+          <tr>
+            <td>09</td>
+            <td>8043</td>
+        </tr>
+          <tr>
+            <td>10</td>
+            <td>7928</td>
+        </tr>
+    </tbody>
+</table>
+<br>
+¿Cuál es el día de la semana con mas avistamientos?:</p>
+<pre class="hljs"><code>data<span class="hljs-class">.month</span>  &lt;- plyr::<span class="hljs-function"><span class="hljs-title">count</span><span class="hljs-params">(format(data<span class="hljs-variable">$date</span>, <span class="hljs-string">"%m"</span>)</span></span>)
+<span class="hljs-function"><span class="hljs-title">head</span><span class="hljs-params">(data.month[order(data.month<span class="hljs-variable">$freq</span>, decreasing =TRUE)</span></span>,],<span class="hljs-number">5</span>)</code></pre><p>Y vemos que es el sabado, seguido del viernes:</p>
+<p><table>
+    <caption>Top 5 dias con observaciones</caption>
+    <thead>
+        <tr>
+            <th>x</th>
+            <th>freq</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td>sábado</td>
+            <td>14677</td>
+        </tr>
+          <tr>
+            <td>viernes</td>
+            <td>12087</td>
+        </tr>
+          <tr>
+            <td>domingo</td>
+            <td>11940</td>
+        </tr>
+          <tr>
+            <td>jueves</td>
+            <td>11333</td>
+        </tr>
+          <tr>
+            <td>miércoles</td>
+            <td>11159</td>
+        </tr>
+    </tbody>
+</table>
+<br>
+Finalmente la Serie temporal de avistamientos: script y grafica:</p>
+<pre class="hljs"><code>ts &lt;- plyr::<span class="hljs-function"><span class="hljs-title">count</span><span class="hljs-params">(data<span class="hljs-variable">$date</span>)</span></span>
+plot<span class="hljs-class">.global</span> &lt;- <span class="hljs-function"><span class="hljs-title">ggplot</span><span class="hljs-params">(data = ts, aes(x = x, y = freq )</span></span> ) +
+       <span class="hljs-function"><span class="hljs-title">geom_line</span><span class="hljs-params">(alpha = .<span class="hljs-number">5</span>, color = <span class="hljs-string">"#ad1457"</span>)</span></span>
+plot.global</code></pre><p class="img-container"><img src="/home/sophie/DS Resources/MK styles/output/serietiempo.png"></p>
+      </div>
+    </div>
+  </div>
+
+  <script type="text/javascript" src="http://ajax.googleapis.com/ajax/libs/jquery/1.9.1/jquery.min.js"></script>
+  <script type="text/javascript" src="assets/js/bootstrap.min.js"></script>
+</body>
+</html>
