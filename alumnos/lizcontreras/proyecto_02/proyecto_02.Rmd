@@ -1,0 +1,482 @@
+---
+title: "Proyecto 02"
+author: "Lizbeth Contreras"
+output: html_document
+---
+
+##Introducción
+
+A continuación se realizará el análisis de los alumnos del Posgrado de Economía de la UNAM, Sede Facultad de Economía.
+
+La información comprende el periodo 2006-2015, durante estos años el Posgrado ha pasado por más de 5 administraciones y por tanto la forma en la cual se ha llevado el control sobre la información de los alumnos es totalmente variada.
+
+En la Reunión de Comité Académico celebrada en el mes de Febrero se le solicitó al Posgrado que entregara la siguiente información para los alumnos de maestría y doctorado:
+* Número de alumnos por generación
+* Número de alumnos por plan de estudios
+* Alumnos que han ingresado a más de un plan de estudios
+* Número de alumnos titulados por año
+* Mes en el que más se titulan
+
+## Limpieza de los datos
+Debido a no se cuenta con una metodología para la captura de datos y a que la información se encontraba en varios archivos y formatos la única forma de ligar los archivos fue mediante el número de cuenta del alumno. 
+
+###Creación de tablas
+
+```
+CREATE TABLE alumnos(
+    cuenta TINYINT,
+    apellido_paterno VARCHAR (12),
+    apellido_materno VARCHAR (12),
+    nombre VARCHAR (20),    
+);
+
+```
+
+```
+CREATE TABLE posgrado(
+    cuenta TINYINT,
+    anio TINYINT,
+    semestre TINYINT,
+    programa TINYINT,
+    plan TINYINT,
+    ingreso_plan TINYIN,
+    tutor VARCHAR (40),
+    egreso TINYIN,
+    fecha_grado DATE
+);
+```
+
+```
+CREATE TABLE programa(
+    programa TINYINT,
+    nom_prog VARCHAR (25),
+);
+```
+
+```
+CREATE TABLE plan_est(
+    plan TINYINT,
+    nom_plan VARCHAR (25),
+);
+```
+
+## Análisis de la información
+
+###Número de alumnos por plan
+
+```
+SELECT plan, cuenta
+FROM (plan_est inner join posgrado 
+ON plan_est.plan=posgrado.plan)
+;
+```
+
+La consulta se guarda como plan.csv
+
+```
+cat plan.csv | cut -d$'\t' -f2 | |  sort | uniq -c
+```
+** Maestría en Economía**
+```{r, echo=FALSE, warning=FALSE, message=FALSE}
+library(graphics)
+Plan = c(461, 462, 4040, 4100)
+Frecuencia = c(2, 2, 287, 251)
+
+df = data.frame(Plan, Frecuencia)
+df
+
+barplot(Frecuencia, xlab = "Plan", ylab = "Frecuencia", names.arg = Plan, col = '84')
+
+```
+
+** Doctorado en Economía**
+```{r, echo=FALSE, warning=FALSE, message=FALSE}
+Plan = c(581, 5040, 5100, 5123)
+Frecuencia = c(6, 230, 75, 159)
+
+df = data.frame(Plan, Frecuencia)
+df
+
+barplot(Frecuencia, xlab = "Plan", ylab = "Frecuencia", names.arg = Plan, col = '84')
+```
+
+###Número de alumnos por generación
+
+Se cuenta con un registro de 8 planes de estudio de los cuales 4 son de maestria y 4 de doctorado
+
+#### Plan 461. Maestría en Economía
+
+```
+SELECT plan, ingreso_plan, cuenta
+FROM (plan_est inner join posgrado 
+ON plan_est.plan=posgrado.plan)
+WHERE (plan_est.plan='461' 
+;
+```
+La consulta se guarda como plan461.csv
+
+```
+cat plan461.csv | cut -d$'\t' -f2 | |  sort | uniq -c
+```
+
+```{r, echo=FALSE, warning=FALSE, message=FALSE}
+Generación = c("2012-2", "2014-1")
+Frecuencia = c(1,1)
+
+df = data.frame(Generación, Frecuencia)
+df
+
+barplot(Frecuencia, xlab = "Generación", ylab = "Frecuencia", names.arg = Generación, col = '84')
+```
+
+#### Plan 462. Maestría en Economía
+
+```
+SELECT plan, ingreso_plan, cuenta
+FROM (plan_est inner join posgrado 
+ON plan_est.plan=posgrado.plan)
+WHERE (plan_est.plan='462' 
+;
+```
+La consulta se guarda como plan462.csv
+
+```
+cat plan462.csv | cut -d$'\t' -f2 | |  sort | uniq -c
+```
+
+```{r, echo=FALSE, warning=FALSE, message=FALSE}
+Generación = c("2009-1", "2015-1")
+Frecuencia = c(1,1)
+
+df = data.frame(Generación, Frecuencia)
+df
+
+barplot(Frecuencia, xlab = "Generación", ylab = "Frecuencia", names.arg = Generación, col = '84')
+```
+
+#### Plan 4040. Maestría en Economía
+
+```
+SELECT plan, ingreso_plan, cuenta
+FROM (plan_est inner join posgrado 
+ON plan_est.plan=posgrado.plan)
+WHERE (plan_est.plan='4040' 
+;
+```
+La consulta se guarda como plan4040.csv
+
+```
+cat plan4040.csv | cut -d$'\t' -f2 | |  sort | uniq -c
+```
+
+```{r, echo=FALSE, warning=FALSE, message=FALSE}
+Generación = c("2005-2", "2006-1", "2007-1", "2008-1", "2009-1", "2010-1", "2011-1")
+Frecuencia = c(37, 28, 28, 80, 46, 33, 35)
+
+df = data.frame(Generación, Frecuencia)
+df
+
+barplot(Frecuencia, xlab = "Generación", ylab = "Frecuencia", names.arg = Generación, col = '84')
+```
+
+#### Plan 4100. Maestría en Economía
+
+```
+SELECT plan, ingreso_plan, cuenta
+FROM (plan_est inner join posgrado 
+ON plan_est.plan=posgrado.plan)
+WHERE (plan_est.plan='4100' 
+;
+```
+La consulta se guarda como plan4100.csv
+
+```
+cat plan4100.csv | cut -d$'\t' -f2 | |  sort | uniq -c
+```
+
+```{r, echo=FALSE, warning=FALSE, message=FALSE}
+Generación = c("2011-2", "2012-1", "2013-1", "2014-1", "2015-1")
+Frecuencia = c(64, 35, 48, 56, 48)
+
+df = data.frame(Generación, Frecuencia)
+df
+
+barplot(Frecuencia, xlab = "Generación", ylab = "Frecuencia", names.arg = Generación, col = '84')
+```
+
+#### Plan 581. Doctorado en Economía
+
+```
+SELECT plan, ingreso_plan, cuenta
+FROM (plan_est inner join posgrado 
+ON plan_est.plan=posgrado.plan)
+WHERE (plan_est.plan='581' 
+;
+```
+La consulta se guarda como plan581.csv
+
+```
+cat plan581.csv | cut -d$'\t' -f2 | |  sort | uniq -c
+```
+
+```{r, echo=FALSE, warning=FALSE, message=FALSE}
+Generación = c("2007-2", "2008-2", "2010-1", "2012-2", "2014-1")
+Frecuencia = c(1, 1, 1, 1, 2)
+
+df = data.frame(Generación, Frecuencia)
+df
+
+barplot(Frecuencia, xlab = "Generación", ylab = "Frecuencia", names.arg = Generación, col = '84')
+```
+
+#### Plan 5040. Doctorado en Economía
+
+```
+SELECT plan, ingreso_plan, cuenta
+FROM (plan_est inner join posgrado 
+ON plan_est.plan=posgrado.plan)
+WHERE (plan_est.plan='5040' 
+;
+```
+La consulta se guarda como plan5040.csv
+
+```
+cat plan5040.csv | cut -d$'\t' -f2 | |  sort | uniq -c
+```
+
+```{r, echo=FALSE, warning=FALSE, message=FALSE}
+Generación = c("2005-2", "2006-1", "2006-2", "2007-1", "2007-2", "2008-1", "2008-2", "2009-1", "2009-2", "2010-1", "2010-2")
+Frecuencia = c(51, 18, 6, 23, 15, 13, 10, 21, 19, 32, 22)
+
+df = data.frame(Generación, Frecuencia)
+df
+
+barplot(Frecuencia, xlab = "Generación", ylab = "Frecuencia", names.arg = Generación, col = '84')
+```
+
+#### Plan 5100. Doctorado en Economía
+
+```
+SELECT plan, ingreso_plan, cuenta
+FROM (plan_est inner join posgrado 
+ON plan_est.plan=posgrado.plan)
+WHERE (plan_est.plan='5100' 
+;
+```
+La consulta se guarda como plan5040.csv
+
+```
+cat plan5100.csv | cut -d$'\t' -f2 | |  sort | uniq -c
+```
+
+```{r, echo=FALSE, warning=FALSE, message=FALSE}
+Generación = c("2011-2")
+Frecuencia = c(75)
+
+df = data.frame(Generación, Frecuencia)
+df
+
+barplot(Frecuencia, xlab = "Generación", ylab = "Frecuencia", names.arg = Generación, col = '84')
+```
+
+#### Plan 5123. Doctorado en Economía
+
+```
+SELECT plan, ingreso_plan, cuenta
+FROM (plan_est inner join posgrado 
+ON plan_est.plan=posgrado.plan)
+WHERE (plan_est.plan='5123' 
+;
+```
+La consulta se guarda como plan5040.csv
+
+```
+cat plan5123.csv | cut -d$'\t' -f2 | |  sort | uniq -c
+```
+
+```{r, echo=FALSE, warning=FALSE, message=FALSE}
+Generación = c("2012-1", "2012-2", "2013-1", "2013-2", "2014-1", "2014-2")
+Frecuencia = c(50, 36, 3, 34, 1, 35)
+
+df = data.frame(Generación, Frecuencia)
+df
+
+barplot(Frecuencia, xlab = "Generación", ylab = "Frecuencia", names.arg = Generación, col = '84')
+```
+
+##Número de alumnos titulados por año y por mes
+
+```
+SELECT fecha_grado
+FROM posgrado 
+;
+```
+La consulta se guarda como fecha_egreso.txt
+
+```{r, echo=FALSE, warning=FALSE, message=FALSE}
+library (openair)
+library (tidyr)
+library(car)
+
+fecha <- read.table("~/grado.txt", header=TRUE, quote="\"")
+
+fecha2 <- separate(fecha, col = fecha_grado, into=c("day","month","year"), sep ='/')
+
+fecha2$mes <- as.numeric(fecha2$month)
+
+fecha2$mes = recode (fecha2$mes, "01='01enero'; 02='02febrero'; 03='03marzo'; 04='04abril'; 05='05mayo'; 06='06junio'; 07='07julio'; 08='08agosto'; 09='09septiembre'; 10='10octubre'; 11='11noviembre'; 12='12diciembre'")
+
+año <- data.frame(table(fecha2$year))
+año
+
+mes <- data.frame(table(fecha2$mes))
+mes
+```
+
+##Número de alumnos titulados por programa
+
+```
+SELECT plan, nom_plan, fecha_grado
+FROM (plan_est inner join posgrado 
+ON plan_est.plan=posgrado.plan)
+;
+```
+La consulta se guarda como plan_grado.csv
+
+**Maestría**
+```
+cat plan_grado.txt | sort | uniq -c | awk  '{if ($2=="maestria") print $1,$2,$3;}'
+```
+
+```{r, echo=FALSE, warning=FALSE, message=FALSE}
+Plan = c(4040, 4100)
+Frecuencia = c(471, 166)
+
+df = data.frame(Plan, Frecuencia)
+df
+
+barplot(Frecuencia, xlab = "Plan", ylab = "Frecuencia", names.arg = Plan, col = '84')
+```
+
+**Doctorado**
+```
+cat plan_grado.txt | sort | uniq -c | awk  '{if ($2=="maestria") print $1,$2,$3;}'
+```
+
+```{r, echo=FALSE, warning=FALSE, message=FALSE}
+Plan = c(581, 5040, 5100)
+Frecuencia = c(2, 347, 32)
+
+df = data.frame(Plan, Frecuencia)
+df
+
+barplot(Frecuencia, xlab = "Plan", ylab = "Frecuencia", names.arg = Plan, col = '84')
+```
+
+##Egreso curricular del programa de Maestría
+
+### Plan 461. Maestría en Economía
+
+```
+SELECT plan, nom_plan, ingreso, egreso,
+        (if(nom_plan=maestria, egreso-ingreso)) AS anios
+FROM (plan_est inner join posgrado 
+ON plan_est.plan=posgrado.plan) 
+WHERE (plan_est.plan='461'
+;
+```
+
+La consulta se guarda como plane461.csv
+
+```
+cat plane461.csv | cut -d$'\t' -f5 | |  sort | uniq -c
+
+Los dos alumnos del plan 461 correspondientes al plan son bajas.
+```
+
+### Plan 462. Maestría en Economía
+
+```
+SELECT plan, nom_plan, ingreso, egreso,
+        (if(nom_plan=maestria, egreso-ingreso)) AS anios
+FROM (plan_est inner join posgrado 
+ON plan_est.plan=posgrado.plan) 
+WHERE (plan_est.plan='462'
+;
+```
+
+La consulta se guarda como plane466.csv
+
+```
+cat plane462.csv | cut -d$'\t' -f5 | |  sort | uniq -c
+```
+
+```{r, echo=FALSE, warning=FALSE, message=FALSE}
+Años = c(0, 2)
+Alumnos = c(1, 2)
+
+df = data.frame(Años, Alumnos)
+df
+
+barplot(Alumnos, xlab = "Años", ylab = "Alumnos", names.arg = Alumnos, col = '84')
+#El plan 462 reporta una baja
+```
+
+### Plan 4040. Maestría en Economía
+
+```
+SELECT plan, nom_plan, ingreso, egreso,
+        (if(nom_plan=maestria, egreso-ingreso)) AS anios
+FROM (plan_est inner join posgrado 
+ON plan_est.plan=posgrado.plan) 
+WHERE (plan_est.plan='4040'
+;
+```
+
+La consulta se guarda como plane4040.csv
+
+```
+cat plane4040.csv | cut -d$'\t' -f5 | |  sort | uniq -c
+```
+
+```{r, echo=FALSE, warning=FALSE, message=FALSE}
+Años = c(0, 2, 3, 4, 5, 6, 8)
+Alumnos = c(62, 181, 609, 41, 10, 6, 5)
+
+df = data.frame(Años, Alumnos)
+df
+
+barplot(Alumnos, xlab = "Años", ylab = "Alumnos", names.arg = Años, col = '84')
+
+#El plan 4040 reporta 62 bajas
+
+```
+
+### Plan 4100. Maestría en Economía
+
+```
+SELECT plan, nom_plan, ingreso, egreso,
+        (if(nom_plan=maestria, egreso-ingreso)) AS anios
+FROM (plan_est inner join posgrado 
+ON plan_est.plan=posgrado.plan) 
+WHERE (plan_est.plan='4100'
+;
+```
+
+La consulta se guarda como plane4100.csv
+
+```
+cat plane4100.csv | cut -d$'\t' -f5 | |  sort | uniq -c
+```
+
+```{r, echo=FALSE, warning=FALSE, message=FALSE}
+Años = c(0, 2, 3, 4)
+Alumnos = c(92, 242, 312, 11)
+
+df = data.frame(Años, Alumnos)
+df
+
+barplot(Alumnos, xlab = "Años", ylab = "Alumnos", names.arg = Años, col = '84')
+
+#El plan 4100 reporta 92 bajas
+```

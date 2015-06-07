@@ -1,0 +1,182 @@
+---
+title: "Proyecto 1"
+author: "Lizbeth Contreras"
+output: html_document
+---
+
+##Estadísticas
+
+###¿Cuántas observaciones totales?
+Para encontrar el número total de observaciones 
+
+```
+wc -l ufo_base.txt
+```
+Lo cual da un total de **97615**
+
+###¿Cuál es el top 5 de estados?
+
+Para obtenerlo se procede a realizar los siguientes pasos:
+
+* Se obtiene  la columna 4 donde se encuentra el campo "Estado"
+* Se ordenan alfabéticamente
+* Se cuentan los valores únicos y se obtiene la frecuencia de cada Estado
+* Se ordenan los datos de acuerdo a la frecuencia de cada Estado
+* Se quitan las comillas
+* Se obtienen los últimos 6 registros <span style="color:gray">(debido a que uno de ellos contiene aquellos registros que no se especifica el Estado)</span>
+
+```
+cat dat.txt | cut -d$'\t' -f4 | sort -t $'\t' -k 1 | uniq -c | sort -t $'\t' -g | sed '/NA/d' | sed 's/"//g' | sed '/./!d' | tail -6
+```
+
+```{r, echo=FALSE, warning=FALSE, message=FALSE}
+library(knitr)
+Frecuencia = c(3863, 4384, 5029, 5176, 7796, 11245)
+Estado = c("NY", "TX", "WA", "FL", " ", "CA")
+df = data.frame(Frecuencia, Estado)
+df
+```
+  
+###¿Cuál es el top 5 de estados por año?
+
+Se obtendrá para el año 1999 
+
+* Se obtienen las columnas 2 "Fecha" y 4 "Estado"
+* Se deja solamente la información del año y del Estado
+* Se quitan las comillas
+* Se ordenan los datos
+* Se especifica el año que se desea
+* Se obtienen los los últimos 6 registros <span style="color:gray">(debido a que uno de ellos contiene aquellos registros que no se especifica el Estado)</span>
+
+```
+cat dat.txt | cut -d$'\t' -f2,4 |  cut -d'/' -f3 | awk '{ t=$1; $1=$3; $2=t; print $2,$3; }' | sed 's/"//g' | sort | uniq -c | awk  '{if ($2=="99") print $1,$2,$3;}' | sort -k1 -n | tail -6
+```
+```{r, echo=FALSE, warning=FALSE, message=FALSE}
+library(knitr)
+Frecuencia = c(109, 127, 146, 234, 243, 400)
+Año = c(99, 99, 99, 99, 99, 99)
+Estado = c("IL", "OH", "TX", "WA", " ", "CA")
+
+df2 = data.frame(Frecuencia, Año, Estado)
+df2
+```
+
+Para ver el top de avistamientos de los demás años se crea un archivo .txt que contenga las siguientes columnas "Día y hora", "Estado"
+
+```
+cat dat.txt | cut -d$'\t' -f2,4 | cut -d' ' -f1,2,4,7 > dat_fech.txt
+``` 
+```{r, echo=FALSE, warning=FALSE, message=FALSE}
+library(Hmisc)
+library(tidyr)
+library(dplyr)
+library(ggplot2)
+dat <- read.delim("dat_fech.txt")
+datos <- separate(dat, col=City, into=c("month","day","year","time"),
+           regex=" ",remove=F,extra="drop")%>%
+  mutate(date= paste(month, day, year, sep ='/'),
+         state = Shape, 
+         date = as.Date(date, format='%y')) %>%
+  select(date, state ) 
+#Se obtiene solamente el año
+datos$año <- substr (datos$date, 1, 4)
+#Se obtiene tabla de frecuencias
+edo_a <- data.frame(table(datos$state, datos$año))
+
+tabla <- datos %>%
+    group_by(año, state) %>%
+    summarise(Frecuencia = n())
+
+frec <- data.frame(table(datos$state, datos$año))
+```
+
+Gráfica **grafica_1.png**
+
+###¿Cuál es la racha más larga en días de avistamientos en un estado?
+
+Se obtendrá para el California que es el Estado en el que más avistamientos se han registrado
+
+* Se obtienen las columnas 2 "Fecha" y 4 "Estado"
+* Se quita la informacion correspondiente a el tiempo que duro el avistamiento
+* Se quitan las comillas
+* Se obtiene la informacion correspondiente para California "CA"
+* Se ordenan y se obtienen los valores unicos 
+
+```
+cat dat.txt | cut -d$'\t' -f2,4  | sed 's/..:..//g' | sed 's/"//g' | grep 'CA' | sort | uniq -c | sort -nr | head -5
+```
+
+```{r, echo=FALSE, warning=FALSE, message=FALSE}
+Frecuencia = c(23, 21, 20, 19, 18)
+Fecha = c("9/1/99", "1/1/14", "9/19/02", "7/7/00", "9/22/05")
+
+df3 = data.frame(Frecuencia, Fecha)
+df3
+```
+
+###¿Cuál es la racha más larga en días de avistamientos en el país?
+
+En todo el pais, sin tomar en cuenta el Estado.
+```
+cat dat.txt | cut -d$'\t' -f2  | sed 's/..:..//g' | sed 's/"//g' |  sort | uniq -c | sort -nr | head -5
+```
+
+```{r, echo=FALSE, warning=FALSE, message=FALSE}
+Frecuencia = c(268, 206, 195, 193, 186)
+Fecha = c("7/4/14", "7/4/10", "11/16/99", "7/4/12", "7/4/13")
+
+df4 = data.frame(Frecuencia, Fecha)
+df4
+```
+
+En todo el pais, tomando en cuenta el Estado.
+```
+cat dat.txt | cut -d$'\t' -f2,4  | sed 's/..:..//g' | sed 's/"//g' |  sort | uniq -c | sort -nr | head -5
+```
+
+```{r, echo=FALSE, warning=FALSE, message=FALSE}
+Frecuencia = c(77, 63, 41, 40, 40)
+Fecha = c("10/31/04", "3/13/97", "7/4/12", "9/30/05", "11/16/99")
+Estado = c("IL", "AZ", "WA", "IL", "OH")
+
+df5 = data.frame(Frecuencia, Fecha, Estado)
+df5
+```
+
+###¿Cuál es el mes con más avistamientos? 
+
+```
+cat dat.txt | cut -f2 | cut -d'/' -f1 | sed 's/"//g' | sort | uniq -c | sort -nr
+```
+
+```{r, echo=FALSE, warning=FALSE, message=FALSE}
+Frecuencia = c(11570, 10431, 10090, 9231, 9036, 8036, 6942, 6837, 6720, 6593, 6550, 5561)
+Mes = c("Julio", "Agosto", "Junio", "Septiembre", "Octubre", "Noviembre", "Enero", "Diciembre", "Mayo", "Abril", "Marzo", "Febrero")
+
+df6 = data.frame(Frecuencia, Mes)
+df6
+```
+###¿Cuál es el día de la semana con más avistamientos?
+
+Primero se obtiene un archivo en el cual venga la frecuencia de las fechas
+
+```
+cat dat.txt | cut -f2 | sed 's/"//g' | sed 's/..:..//g' > dia_sem.txt
+```
+
+```{r, echo=FALSE, warning=FALSE, message=FALSE}
+library (openair)
+dia_sem <- read.csv("dia_sem.txt", sep="")
+
+dia_sem <- separate(dia_sem, col=City, into=c("month","day","year"),
+           regex=" ",remove=F,extra="drop")%>%
+  mutate(date= paste(month, day, year, sep ='/'),
+  date = as.Date(date, format='%m/%d/%y')) %>%
+    select(date)
+
+dias <- dia_sem$date
+
+dia_sem <- cutData(dia_sem, type="weekday")
+
+summary (dia_sem$weekday)
+```

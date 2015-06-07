@@ -1,0 +1,1 @@
+./proc_serie.sh  10.36s user 0.60s system 184% cpu 5.948 total

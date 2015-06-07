@@ -1,0 +1,8 @@
+suma 493377
+n= 845
+Media =  583
+Maximo =  18000
+Minimo =  0
+Mediana =  180
+Desviacion estandar =  1437
+Varianza =  2067816

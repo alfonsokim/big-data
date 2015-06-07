@@ -1,0 +1,2 @@
+zsh: permiso denegado: ./proc_serie_sincut.sh
+./proc_serie_sincut.sh  0.00s user 0.00s system 76% cpu 0.002 total
