@@ -1,0 +1,349 @@
+---
+title: "ProyectoFinal"
+author: "Aaron Sanchez"
+date: "5 de junio de 2015"
+output: html_document
+---
+#Proyecto Final
+##Aarón Ch. Sánchez Padilla
+##Métodos a gran escala
+##Exploración inicial de los datos
+
+```{r, warning=FALSE, message=FALSE, error=FALSE, echo=TRUE, eval=TRUE}
+
+# Este bloque debería de tener la bandera de echo a FALSE
+
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+library(lubridate)
+library(stringr)
+library(ROCR)
+library(tm)
+library(Rstem)
+library(RCurl) 
+library(bitops) 
+library(digest) 
+library(rjson)
+library(cluster)
+library(wordcloud)
+
+library(e1071)
+library(gmodels)
+library(stylo)
+source("utils.r")
+
+```
+
+
+
+```{r}
+# Este bloque debería de tener la bandera de echo a FALSE
+
+# NOTA: Todos los bloques de este documento, tienen eval a FALSE, se debería de eliminar
+
+# Cargamos el dataset
+
+ds.path <- "ufos.rds"
+
+ds.name <- "ufo" # Nombre de nuestro conjunto de datos, e.g. algas, german
+
+ds  <- readRDS(ds.path) # Leemos el dataset, usando readRDS (ya que ya lo tenemos en disco debido a nuestro EDA)
+   # Hay que utilizar el data set al que no se le han removido las observaciones NAs
+   # Lo guardamos en la variable ds para hacer más genérico los pasos.
+
+ds <- tbl_df(ds) # Para obtener un print mejorado
+```
+
+
+# Introducción
+
+The National UFO Reporting Center ( NUFORC ) es una organización en los Estados Unidos que investiga los avistamientos de ovnis y / o contactos extraterrestres. NUFORC ha estado en operación continua desde 1974. Fue fundada en 1974 por Robert J. Gribble .Se ha catalogado casi 90.000 avistamientos de ovnis reportados largo de su historia , la mayoría de los cuales estaban en los Estados Unidos. Además de mantenimiento de registros, el centro ha proporcionado estadísticas y gráficos para ayudar a otros en busca de información . Slate publicó un gráfico interactivo publicado por Davenport , que mostró la densidad de avistamientos relativos a un área.
+
+## Variables
+
+Date/Time: es un timestamp del cuando ocurrió avistamiento.
+City: la ciudad en donde ocurrió el avistamiento.
+State: la abreviación del estado en donde ocurrió el avistamiento.
+Shape: la forma del ovni observado.
+Duration: el tiempo estimado de la duración del avistamiento.
+Summary: un breve resumen que explique en qué consistió el avistamiento.
+Poster: fecha del registro del avistamiento.
+Report: narración del evento ocurrido
+
+
+# Estructura General
+
+```{r}
+ds
+```
+
+
+## Tamaño
+```{r}
+dim(ds)
+```
+
+## Columnas
+
+```{r}
+names(ds)
+```
+
+## Estructura
+
+```{r}
+str(ds)
+```
+
+
+## Observaciones
+
+```{r}
+head(ds)
+```
+
+```{r}
+tail(ds)
+```
+
+
+# Sumario Estadístico
+
+```{r}
+summary(ds)
+```
+
+
+# Limpieza de metadatos
+
+```{r}
+
+# Usaremos la función que hiciste de ejercicio
+names(ds) <- normalizarNombres(names(ds))
+```
+
+
+Además de normalizar los nombres de variables, este es el lugar para poner nombres que tengan significado como que la columna que tenga datos de fecha, se llame `fecha` o `date`.
+
+```{r}
+names(ds)
+```
+
+# Ajuste de formatos
+
+Las clases de las variables son
+
+```{r}
+sapply(ds, class)
+```
+
+
+En esta sección arreglamos los formatos de los datos. Un ejemplo típico son las fechas.
+
+Otros problemas con variables son: categóricas/numéricas que no lo son, booleanas que no lo son, ordenar variables nominales, reetiquetar las variables categóricas, etc.
+
+Para arreglar las fechas, utiliza el paquete `lubridate`.
+
+El formato de fechas debe de ser `YMD` y si es `timestamp` debe de serlo hasta la precisión que den los datos, no más, no menos.
+
+```{r}
+# Ejemplo hipotético
+library(lubridate)
+ds$posted <- ymd(as.character(ds$posted))
+ds2<-ds
+ds <- ds %>%
+  mutate(date = as.Date(ds$date...time,format ='%m/%d/%y'),
+         city = city,
+         state = state,
+         shape = shape) %>%
+  dplyr::select(date,city,state,shape)
+```
+
+
+
+Así quedan las variables corregidas:
+
+```{r}
+sapply(ds, class)  
+```
+
+##Conexión con postgres
+
+```{r, eval=FALSE}
+library(RPostgreSQL)
+library(sqldf)
+drv <- dbDriver("PostgreSQL")
+## Base de datos
+con <- dbConnect(drv, dbname="ufo-db", user="aaronsapa")
+con <- dbConnect(PostgreSQL(), user= "aaronsapa", dbname="ufo-db")
+## query
+ufo<- dbReadTable(con,"ufo")
+
+```
+
+#¿Primer avistamiento en cada estado?
+```{r, eval=FALSE}
+first_views <- dbGetQuery(con,"SELECT state, date  FROM ufo GROUP BY state ORDER BY date")
+```
+
+```{r,echo=FALSE}
+first_views <- ds %>%
+  filter(state != "") %>% 
+  arrange(date) %>%
+  group_by(state)
+first_views <-arrange(aggregate(date ~ state, data = first_views, `[`, 1),date)
+head(first_views, 10)
+```
+#¿Primer avistamiento de cada forma?
+
+```{r,eval=FALSE}
+first_shapes<- dbGetQuery(con, "SELECT shape, MIN(date) FROM ufo GROUP BY shape ORDER BY date")
+```
+
+```{r, echo=FALSE}
+first_shapes <- ds %>%
+  filter(shape != "") %>% 
+  arrange(date) %>%
+  group_by(shape)
+first_shapes <-arrange(aggregate(date ~ shape, data = first_shapes, `[`, 1),date)
+head(first_shapes, 10)
+```
+
+#¿Promedio de entre avistamientos, por mes, por año? ¿Por estado?
+#por mes
+```{r,eval=FALSE}
+prom_m<-dbGetQuery(con,"select month(date), count, avg(cuenta) prom_mes
+from(select count(date) count,extract(year from date) anio, 
+extract(month from date) mes, state
+from ufo
+group by extract(year from date), 
+extract (month from date), state) as base
+group by (mes)
+order by (mes)")
+```
+
+```{r,echo=FALSE}
+prom_m <- ds %>%
+  filter(year(date) <= 2015) %>%
+  group_by(year(date)) %>%
+  group_by(month(date)) %>%
+  dplyr::summarise(count = n()) %>% 
+  mutate(prom_anio = count/12) 
+head(prom_m, 10)
+```
+#por año
+```{r,eval=FALSE}
+prom_m<-dbGetQuery(con,"select year(date),count, avg(count) prom_anio
+from(select count(date) count from ufo
+group by extract(year from date) anio, 
+extract (month from date), state) as base
+group by (anio)
+order by (anio)")
+```
+
+```{r,echo=FALSE}
+prom_a <- ds %>%
+  filter(year(date) <= 2015) %>%
+  group_by(year(date)) %>%
+  dplyr::summarise(count = n()) %>% 
+  mutate(prom_anio = count/47)
+head(prom_a,10)
+```
+#por estado
+```{r, eval=FALSE}
+prom_s<-dbGetQuery(con,"select state, count, avg(cuenta) prom_estado
+from(select count(date) count,extract(year from date) anio, 
+extract(month from date) mes, state
+from ufo
+group by extract(year from date), 
+extract (month from date), state) as base
+group by (state)
+order by (promedio_estado) desc
+limit 10;")
+
+```
+
+```{r,echo=FALSE}
+prom_s <- ds %>%
+  filter(state != "") %>% 
+  group_by(state) %>% 
+  dplyr::summarise(count = n()) %>% 
+  mutate(prom_estado = count/length(unique(state))) %>%
+  arrange(desc(prom_estado))
+head(prom_s,10)
+```
+#¿Cuál estado tiene mayor varianza?
+```{r,echo=FALSE}
+prom_var_s <- ds %>%
+  filter(state != "") %>% 
+  group_by(state) %>% 
+  dplyr::summarise(count = n()) %>% 
+  mutate(prom_estado = count/length(unique(state))) %>%
+  arrange(desc(prom_estado))
+
+#promedio general
+porm_gral <- sum(prom_var_s$count)/length(unique(prom_var_s$state))
+
+prom_var_s1 <- prom_var_s %>%
+  mutate(std_d = (count-porm_gral)^2) %>%
+  mutate(varianza = std_d / length(unique(state))) %>%
+  arrange(desc(varianza))
+
+head(prom_var_s1,10)
+```
+
+#¿Existen olas temporales?
+```{r,echo=FALSE}
+date.reports <-ds %>%
+  filter(as.Date(ds$date,format ='%m/%d/%y') > as.Date('2009-01-01') , as.Date(ds$date,format ='%m/%d/%y')< as.Date('2015-05-01')) %>% group_by(date) %>%
+  dplyr::summarise(reports = n()) %>%
+  dplyr::select(date,reports) 
+
+ggplot(date.reports , aes(x = date, y = reports)) + geom_line(stat = "identity") + xlab("date") + ylab("num. avistamientos") + ggtitle("Serie de tiempo ") + theme(axis.text.x = element_text(angle = 0, hjust = 1))
+```
+
+#¿Narrativas parecidas?
+
+```{r}
+ufo <-ds2[1:6000,]
+ufo$report <- tolower(ufo$report)
+
+corpus <- Corpus(VectorSource(ufo$report), list(language ="en_US"))
+corpus <- tm_map(corpus, removeWords, stopwords(kind = "en"))
+corpus <- tm_map(corpus, removeWords, stylo.pronouns(language = "English"))
+corpus <- tm_map(corpus , removePunctuation)
+corpus <- tm_map(corpus, stemDocument, language = "english",lazy=TRUE)
+corpus <- tm_map(corpus, stripWhitespace)
+corpus <- tm_map(corpus, content_transformer(tolower))
+corpus <- tm_map(corpus, removeNumbers)
+
+corpus <- tm_map(corpus, PlainTextDocument)
+termDocMatrix <- TermDocumentMatrix(corpus, control = list(wordLengths = c(1, Inf)))
+freq.terms <- findFreqTerms(termDocMatrix, lowfreq=116)
+term.freq <- rowSums(as.matrix(termDocMatrix))
+term.freq <- subset(term.freq, term.freq >=5)
+dfTermfq <- data.frame(term = names(term.freq), freq = term.freq)
+wordcloud(corpus, max.words = 100,  scale = c(3, 0.5))
+```
+
+
+#¿Cómo está relacionado con las características sociales?
+```{r}
+df.educacion <- read.csv(file="educacion.csv", header = TRUE, sep = ",")
+tbl_df(df.educacion)
+colnames(df.educacion)[1] <- "state"
+colnames(df.educacion)[2] <- "Bachelor"
+str(df.educacion)
+ds.aux <-subset(ds, grepl("[A-Z][A-Z]", state))
+prom_s <- ds.aux %>%
+  filter(state != "") %>% 
+  group_by(state) %>% 
+  dplyr::summarise(count = n()) 
+ds.social<-merge(x=prom_s,y=df.educacion, by = "state", all.y = TRUE)
+library(stats)
+ds.social<-ds.social[complete.cases(ds.social),]
+plot(count~Bachelor, xlim = c(0, 100), ylab = 'num. sightings', xlab = '% Population with bachelor degree', main = 'Education', data = ds.social)
+with(ds.social, text(state, labels = row.names(ds.social[1]), pos = 4))
+```
+
