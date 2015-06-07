@@ -1,0 +1,208 @@
+---
+title: "Proyecto 2 GDELT"
+author: "Sergio Haro Perez"
+date: "25/05/2015"
+output:
+  html_document:
+    theme: cosmo
+    highlight: monochrome
+---
+
+Señala el caso de México.
+¿Existen clústers?
+¿Qué países son parecidos a México?
+¿Puedes desarrollar un modelo predictivo?
+¿Qué más bases de datos puedes traer al análisis?
+
+```{r,include=FALSE,fig.align='center',message=FALSE,echo=FALSE}
+library(dplyr)
+library(ggplot2)
+library(knitr)
+library(reshape2)
+library(utils)
+library(Hmisc)
+library(corrgram)
+
+setwd("~/proyectos/proyecto_final_doc")
+crcodes<-readRDS(file = "crcodes.rds")
+ccodes<-readRDS(file = "ccodes.rds")
+req.world <- readRDS(file ="reqworld.rds")
+req.mx.1<-readRDS(file = "req.mx.1.rds")
+req.mx.2<-readRDS(file = "req.mx.2.rds")
+req.mx.3<-readRDS(file = "req.mx.3.rds")
+
+names(ccodes)<- c('EventCode','EventCodeDescription')
+```
+
+Eventos que se registraron  en Mexico por Year. (Todos los eventos).
+
+Necesitamos extraer los codigos Raiz, ya que agruparlos por evento, no podemos descartar los eventos menos ocurrentes, ya que pueden reprensentar sucesos importantes.
+
+Presentamos los eventos generales en el pais desde 1979 a 2015
+
+```{r, echo=FALSE, include=FALSE}
+names(crcodes) <- c("EventRootCode","EventRootCodeDescription")
+
+#Realizamos el join de eventos, para obtener su descripcion
+req.mx.desc<-inner_join(req.mx.1,ccodes)
+req.mx.desc<-inner_join(req.mx.desc,crcodes)
+```
+
+
+
+```{r, echo=FALSE}
+ggplot(req.mx.desc, aes(x=factor(Year),y=C,colour=EventRootCodeDescription))  +
+    geom_point() +
+    facet_wrap(~ EventRootCodeDescription ,ncol = 4 )+
+    theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
+    ggtitle("Registros de Mexico") +
+    xlab("Año") +
+    ylab("Numero de Eventos")
+```
+
+Podemos observar en el summary que en los 35 años hay eventos que solo tienen una ocurrencia maxima de 26487
+
+```{r, echo=FALSE}
+kable(summary(req.mx.desc))
+```
+
+El total de eventos registrados es:
+
+```{r, echo=FALSE}
+sum(req.mx.desc$C)
+```
+
+Veamos los eventos mas recurrentes y los menos recurrentes
+
+```{r, echo=FALSE, include=FALSE}
+req.mx.descending<-req.mx.desc%>%
+    arrange(desc(C))
+req.mx.ascending<-req.mx.desc%>%
+    arrange(C)
+```
+
+```{r, echo=FALSE}
+kable (head(req.mx.descending,10))
+kable (head(req.mx.ascending,10))
+```
+
+Ahora ,agrupados por Año evento raiz y codigo, presentamos los ocurridos en Mexico
+
+```{r, echo=FALSE}
+
+req.mx.desc<-inner_join(req.mx.2,ccodes)
+req.mx.desc<-inner_join(req.mx.desc,crcodes)
+
+
+ggplot(req.mx.desc, aes(x=factor(EventRootCodeDescription),y=C,colour=EventRootCodeDescription))  +
+    geom_bar(stat="identity") +
+    #facet_wrap(~ EventRootCodeDescription ,ncol = 4 )+
+    theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
+    ggtitle("Registros de Mexico") +
+    xlab("Tipo de Evento") +
+    ylab("Numero de Eventos")
+```
+
+Ahora vamos a centrarnos en informacion de los ultimos 5 años.
+
+```{r, echo=FALSE}
+req.mx.desc<-inner_join(req.mx.3,crcodes)
+
+req.mx.sta<- req.mx.desc%>%
+    mutate(P=req.mx.desc$C/sum(req.mx.3$C))
+
+ggplot(req.mx.sta, aes(x=Year,y=C))+
+    geom_line() +
+    facet_wrap(~EventRootCodeDescription)+
+    theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+    ggtitle("Eventos 2010 ~ 2015") +
+    xlab("Año") +
+    ylab("Eventos")
+```
+
+```{r, echo=FALSE, include=FALSE}
+
+req.world.sta<- req.world%>%
+    mutate(P=req.world$C/sum(req.world$C))
+
+req.grp.ctry<-req.world.sta%>%
+    group_by(ActionGeo_CountryCode)%>%
+    summarise(Total.Eventos = sum(C, na.rm = TRUE)) %>%
+    mutate(P=Total.Eventos/sum(req.world$C))
+```    
+
+Buscando paises con una relacion con eventos, graficamos el numero de eventos por pais. 
+
+```{r, echo=FALSE}
+ggplot(req.grp.ctry,aes(x=factor(ActionGeo_CountryCode),y=P, label=ActionGeo_CountryCode))+ 
+    geom_text(size =3)
+```
+
+```{r, echo=FALSE, include=FALSE}
+
+#Obtenemos la matriz de Pais vs Codigos
+mvl <- acast(req.world,factor(ActionGeo_CountryCode)~factor(EventRootCode),value.var = "C" )
+mvl<-na.omit(mvl)
+mvl<-scale(mvl)
+mvt<-t(mvl)
+mvt.matrix <-as.matrix(mvl)
+d<-dist(mvt.matrix)
+fit<-hclust(d, method="ward.D2")
+```
+
+Graficamos el dendograma, pero no se puede apreciar a que cluster pertenece mexico
+
+```{r, echo=FALSE}
+plot(fit)
+```
+
+Rebanamos el cluster en 20
+```{r, include=FALSE,echo=FALSE}
+groups <- cutree(fit, k=20) 
+```
+
+```{r, echo=FALSE }
+#Visualizamos 
+table(groups)
+```
+
+Buscamos en que grupo quedo mexico:
+```{r, echo=FALSE}
+groups['MX']
+```
+
+Vemos que México pertenece al grupo 7
+
+Se agrupa unicamente al que pertenece mexico y visualizamos el nuevo dendograma
+```{r, echo=FALSE, include=FALSE}
+mvt.clst<- mvt.matrix[groups==7,]
+d<-dist(mvt.clst)
+fit<-hclust(d, method="ward.D2")
+```
+
+```{r, echo=FALSE}
+plot(fit)
+rect.hclust(fit, k=3, border="red")
+```
+
+Con esta nueva matriz podemos obtener las correlaciones de mexico 
+
+```{r, echo=FALSE, include=FALSE}
+mvt.rcorr <- rcorr(x = t(mvt.clst),type = "pearson")
+```
+
+Por Pais
+
+```{r, echo=FALSE}
+corrgram(t(mvt.clst),order=NULL, lower.panel=panel.shade,
+         upper.panel=NULL, text.panel=panel.txt,
+         main="Paises con eventualidades de 2010 - 2015")
+```
+
+y por evento
+
+```{r, echo=FALSE}
+corrgram(mvt.clst,order=NULL, lower.panel=panel.shade,
+         upper.panel=NULL, text.panel=panel.txt,
+         main="Paises con eventualidades de 2010 - 2015")
+```
