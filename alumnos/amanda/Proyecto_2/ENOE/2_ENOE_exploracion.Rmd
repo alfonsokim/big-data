@@ -1,0 +1,721 @@
+---
+title: "Exploración de la base de datos ENOE"
+author: "Amanda Balderas M."
+date: "Junio 2015"
+output: html_document
+---
+
+```{r, error=FALSE, warning=FALSE, message=FALSE, echo=FALSE, eval=TRUE}
+# Limpiamos objetos
+rm(list = ls())  
+
+# Cerramos gráficas
+graphics.off()
+
+# Definiendo ruta de trabajo
+setwd("C:/Users/Amanda29/Documents/archivos_gran_escala/Proyecto_2/ENOE")
+
+# Cargamos librerías
+library(RPostgreSQL)
+library(ggplot2)
+library(grid)
+library(tidyr)
+library(dplyr)
+```
+
+-------------------------------------------------------------------------
+
+**Objetivo**
+
+* Describir el proceso mediante el cual se realizó la obtención y limpieza de los datos de la `base_enoe`. 
+
+* Hacer una descripción de la `base_enoe`.
+
+* Presentar un análisis exploratorio de la información que nos permitirá identificar algunas caracteristicas de los datos.
+
+-------------------------------------------------------------------------
+
+**Introducción**
+
+Para cualquier análisis es importante contar con la información de interés en un formato correcto y con datos limpios, en este documento se describe el proceso realizado para obtener la información que se utilizará para el análisis.
+
+Asimismo se presenta un breve análisis exploratorio de la información.
+
+
+En este documento se desarrollan los siguientes puntos:
+
+1. Obtención de los datos
+
+2. Descripción de la base de datos
+
+3. Limpieza y transformación de los datos
+
+4. Análisis exploratorio de los datos
+
+5. Anexo
+
+-------------------------------------------------------------------------
+
+## 1. Obtención de los datos
+
+Los datos utilizados para este proyecto se obtuvieron de la página oficial del Instituto de Nacional de Estadística y Geografía [INEGI](http://www.inegi.org.mx/). La información corresponde es resultado de la Encuesta Nacional de Ocupación y Empleo (ENOE). 
+
+<center>![](imagenes/imagen1.png)</center>
+
+
+La ENOE tiene como objetivo obtener información estadística sobre las características ocupacionales de la población a nivel nacional, así como otras variables demográficas y económicas que permitan profundizar en el análisis de los aspectos laborales.
+
+Dicha encuesta se realiza trimestralmente a nivel nacional, para las 32 entidades federativas. El marco muestral utilizado para la ENOE es el marco nacional de viviendas 2012 del INEGI, el tamaño de la muestra es de 120,260 viviendas.
+
+La unidad de análisis es el hogar y la población objetivo son las personas residentes habituales de las viviendas seleccionadas.
+
+El INEGI presenta entre sus productos las bases correspondientes a los microdatos que contienen la información recabada en la encuesta para cada persona que fue entrevistada. 
+
+La base de datos de la ENOE, se conforma por cinco tablas de datos en formato "DBF", las tablas son: 
+
+<center>![](imagenes/imagen2.png)</center>
+
+
+La siguiente imagen representa la relación que existe entre las tablas y sus registros. Para cada vivienda existe uno o más hogares, para cada hogar existe uno o más residentes, para cada residente de 12 años y más existe un cuestionario de ocupación y empleo.   
+
+<center>![](imagenes/imagen3.png)<center>
+
+
+Para el desarrollo de este proyecto se utilizará en particular la información de la tabla *_Sociodemográfico_* y se realizará el análisis de la información correspondiente al último levantamiento publicado de la ENOE que tiene como periodo de referencia el primer trimestre de 2015.
+
+-------------------------------------------------------------------------
+
+## 2. Descripción de la base de datos.
+
+En la tabla *Sociodemográfico* se almacenan las características de los residentes del hogar, como es la condición de residencia, la edad, el sexo, estado civil, etc. 
+
+Además en esta tabla se incluyen una serie de campos llamados _precodificados_, los cuales son de gran utilidad para el procesamiento y consulta de datos, permitiendo generar información en forma rápida y oportuna sobre las características sociodemográficas y de ocupación directamente desde esta tabla, sin tener que implementar procesos adicionales de codificación. 
+
+Las variables precodificadas están basadas en los principales grupos poblacionales de acuerdo con su condición de actividad y se clasifican de la manera siguiente:
+
+* Variables precodificadas.
+
+* Variables precodificadas para la población ocupada.
+
+* Variables precodificadas para la población desocupada.
+
+* Variables precodificadas para la población subocupada.
+
+* Variables precodificadas para la población subordinada y remunerada.
+
+* Variables precodificadas para la población no económicamente activa.
+
+* Variables precodificadas generales.
+
+
+La tabla _Sociodemográfico_ correspondiente al primer trimestre de 2015, cuenta con 104 variables y 404,432 registros.
+
+La `base_enoe` se conforma de las tablas llamadas `tabla_enoe` que se encuentran en el esquema _dirty_ y en el esquema _clean_.
+
+<center>![](imagenes/enoe3.png)</center>
+
+
+**Variables seleccionadas**
+
+Para este ejercicio no se incluyeron todas las variables se la tabla _Sociodemográfico_ en la `tabla_enoe` del esquema _dirty_, para un manejo más práctico de la información se seleccionaron algunas variables que se consideraron interesantes para el análisis. 
+
+Las variables seleccionadas son:
+
+<center>![](imagenes/imagen4.png)</center>
+
+
+Dado lo anteior y considerando que trabajaremos con la información correspondiente al primer trimestre de 2015, tenemos que la `tabla_enoe_1_2015` del esquema *dirty_particion* que contiene la información en formato original, se conforma de 15 variables y 4010,432 observaciones, cada observación corresponde a una encuesta.  
+
+De las 15 variables que contiene la tabla, 14 son variables originales:
+
+1. R_DEF
+2. MUN
+3. ENT
+4. C_RES
+5. SEX
+6. EDA
+7. E_CON
+8. ING7C
+9. CLASE2
+10. RAMA_EST1
+11. NIV_INS
+12. HRSOCUP
+13. INGOCUP
+14. EMP_PPAL
+
+Y una variable se incorpora a la tabla para identificar el periodo al que corresponde la información  y que además sirve como parámetro para la partición de las tablas en _Postgresql_.
+
+15. trimestre
+
+
+Verificamos la estructura de la `tabla_enoe` en el esquema *dirty_particion*, considerando la información del primer trimestre de 2015.
+
+```{r, error=FALSE, warning=FALSE, message=FALSE, echo=TRUE, eval=TRUE, cache=TRUE}
+# Nos conectamos a base_UFO en Postgresql
+drv <- dbDriver("PostgreSQL")
+cone <- dbConnect(drv, dbname="base_enoe", host="localhost", port=5432, user="postgres", password="bameam29")
+
+# Verificamos que la tabla existe
+dbExistsTable(cone, c("dirty", "tabla_enoe"))
+
+# Leeemos la tabla
+d_tabla_enoe_1_2015 <- dbReadTable(cone, c("dirty_particion", "tabla_enoe_1_2015"))
+#d_tabla_enoe_1_2015 <- dbGetQuery(cone, "select * from dirty.tabla_enoe where trimestre = '1_2015'")
+
+# Checamos dimensión y estructura
+dim(d_tabla_enoe_1_2015)
+str(d_tabla_enoe_1_2015)
+```
+
+Por otra parte, la `tabla_enoe_1_2015` del esquema *clean_particion*, que contiene la información limpia y transformada, se forma de 12 variables y un total de 167,959 observaciones, está tabla es la que se utilizará para el análisis de los datos. 
+
+-------------------------------------------------------------------------
+
+## 3. Limpieza y transformación de los datos.
+
+**Selección de registros**
+
+Para seleccionar los registros que son utilizados en el análisis, se utilizó como base el criterio definido por el INEGI para obtener la información correspondiente a población ocupada, se decidió seleccionar estos registros, ya que con esta información podremos garantizar que la base corresponde a personas que en el momento de la entrevista se encontraban trabajando, además de que son los criterios que el INEGI considera para obtener las estadísticas oficiales que se publican como resultados de la ENOE.
+
+Tenemos que en la tabla *Sociodemográfico* existen los campos:
+
+`R_DEF` Esta variable almacena el resultado definitivo de la entrevista del hogar.
+
+`C_RES` Esta variable determina la condición de residencia del ocupante del hogar.
+
+`CLASE2` Esta variable clasifica a la población ocupada y desocupada; disponible y no disponible.
+
+Estas variables se incluyen en la `tabla_enoe` del el esquema _dirty_ ya que se utilizarán para la selección de registros:
+
+<center>![](imagenes/imagen5.png)</center>
+
+
+Además en las el grupo de variables seleccionadas tenemos:
+
+`EDA` Esta variable almacena los años cumplidos del residente. La reciente reforma constitucional define los 15 años como la edad legal mínima para trabajar.
+
+Con las variables anteriores y dadas las definiciones que tenemos para cada variable se obtiene el criterio general para selección de la población ocupada con ingresos, que queda de la siguiente manera:
+
+```
+(R_DEF = 00) y (C_RES = (1 o 3)) y (EDA > 14 y EDA < 97) y (CLASE2 = 1)
+```
+
+Para la selección de los registros se realizan los siguientes pasos:
+
+![](imagenes/imagen6.png)
+
+
+**Transformación de los datos**
+
+```{r, error=FALSE, warning=FALSE, message=FALSE, echo=TRUE, eval=TRUE}
+c_tabla_enoe_1_2015 <- d_tabla_enoe_1_2015
+```
+
+Se verifica cada una de las variables descritas anteriormente y que serán utilizadas en el análisis. 
+
+**Variables para la selección de registros**
+
+`r_def` y `c_res` 
+
+Se verifica que las variables son de tipo caracter y que las categorías corresponden a las que se tienen definidas. 
+
+Tenemos que estas variables sólo se utilizarán para la selección de registros por lo que no se realiza ninguna transformación en ellas.
+
+```{r, error=FALSE, warning=FALSE, message=FALSE, eval=TRUE, echo=TRUE}
+# Resultado entrevista
+class(c_tabla_enoe_1_2015$r_def)
+c_tabla_enoe_1_2015$r_def <- as.factor(c_tabla_enoe_1_2015$r_def)
+unique(c_tabla_enoe_1_2015$r_def)
+
+# Condición de residencia
+class(c_tabla_enoe_1_2015$c_res)
+c_tabla_enoe_1_2015$c_res <- as.factor(c_tabla_enoe_1_2015$c_res)
+unique(c_tabla_enoe_1_2015$c_res)
+```
+
+`clase2`
+
+Se verifica que la variable es de tipo numérico y cumple el rango definido, dado que esta variable sólo se utilizará para la selección de registros, no se realiza ninguna transformación en ella.
+
+```{r, error=FALSE, warning=FALSE, message=FALSE, eval=TRUE, echo=TRUE}
+# Clasificación de la población
+class(c_tabla_enoe_1_2015$clase2)
+unique(c_tabla_enoe_1_2015$clase2)
+```
+
+`eda` Verificamos que la variable es de tipo caracter, para facilitar su uso en el análisis se modifica a tipo numérica.
+
+Con lo anterior, tenemos que el rango de la variable va de 1 a 100, por lo que se conserva el formato de la variable sin discretizar. 
+
+Además sabemos que, de acuerdo a la definición de la variable, los valores menores a 1 y mayores a 96 no son edades específicas; sin embargo, no se realiza ningún cambio ya que en la selección de registros se eliminan esos casos.
+
+```{r, error=FALSE, warning=FALSE, message=FALSE, eval=TRUE, echo=TRUE}
+# Edad
+class(c_tabla_enoe_1_2015$eda)
+c_tabla_enoe_1_2015$eda <- as.integer(c_tabla_enoe_1_2015$eda)
+min(c_tabla_enoe_1_2015$eda, na.rm = TRUE)
+max(c_tabla_enoe_1_2015$eda, na.rm = TRUE)
+```
+
+**Resto de las variables seleccionadas**
+
+`mun`, `ent`, y `sex` 
+
+Se verifica que las variables son de tipo caracter y que las categorías corresponden a las definidas.
+
+```{r, error=FALSE, warning=FALSE, message=FALSE, eval=TRUE, echo=TRUE}
+# Municipio
+class(c_tabla_enoe_1_2015$mun)
+c_tabla_enoe_1_2015$mun <- as.factor(c_tabla_enoe_1_2015$mun)
+unique(c_tabla_enoe_1_2015$mun)
+
+# Entidad
+class(c_tabla_enoe_1_2015$ent)
+c_tabla_enoe_1_2015$ent <- as.factor(c_tabla_enoe_1_2015$ent)
+unique(c_tabla_enoe_1_2015$ent)
+
+# Sexo
+class(c_tabla_enoe_1_2015$sex)
+c_tabla_enoe_1_2015$sex <- as.factor(c_tabla_enoe_1_2015$sex)
+unique(c_tabla_enoe_1_2015$sex)
+```
+
+`e_con` 
+
+Se verifica que la variable es de tipo caracter y que las categorías corresponden a las definidas. 
+
+```{r, error=FALSE, warning=FALSE, message=FALSE, eval=TRUE, echo=TRUE}
+# Estado conyugal
+class(c_tabla_enoe_1_2015$e_con)
+c_tabla_enoe_1_2015$e_con <- as.factor(c_tabla_enoe_1_2015$e_con)
+unique(c_tabla_enoe_1_2015$e_con)
+```
+
+`ing7c` 
+
+Verificamos que la variable es de tipo numérico, podemos observar que además de los valores definidos para esta variable se tienen casos con valor cero.
+
+Aunque la variable está definida originalmente como numérica, sabemos que realmente representa una variable categórica, por lo que para este ejercicio se convertirá a tipo factor.
+
+```{r, error=FALSE, warning=FALSE, message=FALSE, eval=TRUE, echo=TRUE}
+# Clasificación del ingreso
+class(c_tabla_enoe_1_2015$ing7c)
+c_tabla_enoe_1_2015$ing7c <- as.factor(c_tabla_enoe_1_2015$ing7c)
+unique(c_tabla_enoe_1_2015$ing7c)
+```
+
+`rama_est1` 
+
+Se verifica que la variable es de tipo númerico y sus valores corresponden a los definidos. Dentro de esos valores se tiene el valor "0" que corresponde a casos en los que no aplica un valor para la variable o un valor perdido, por lo que se modifica ese valor para considerar en general esos casos como valores faltantes.
+
+Aunque la variable está definida originalmente como numérica, sabemos que realmente representa una variable categórica, por lo que para este ejercicio se convertirá a tipo factor.
+
+```{r, error=FALSE, warning=FALSE, message=FALSE, eval=TRUE, echo=TRUE}
+class(c_tabla_enoe_1_2015$rama_est1)
+unique(c_tabla_enoe_1_2015$rama_est1)
+c_tabla_enoe_1_2015$rama_est1[c_tabla_enoe_1_2015$rama_est1 == 0] <- NA
+c_tabla_enoe_1_2015$rama_est1 <- as.factor(c_tabla_enoe_1_2015$rama_est1)
+unique(c_tabla_enoe_1_2015$rama_est1)
+```
+
+`niv_ins` 
+
+Se verifica que la variable es de tipo numérico y sus valores corresponden a lo descrito en la definición. 
+
+En la definición de la variable tenemos que los valores "0" que se cambian a valores faltantes, por ser casos donde no aplica un valor o valores pedidos.
+
+Aunque la variable está definida originalmente como numérica, sabemos que realmente representa una variable categórica, por lo que para este ejercicio se convertirá a tipo factor.
+
+```{r, error=FALSE, warning=FALSE, message=FALSE, eval=TRUE, echo=TRUE}
+# Nivel de instrucción
+class(c_tabla_enoe_1_2015$niv_ins)
+unique(c_tabla_enoe_1_2015$niv_ins)
+c_tabla_enoe_1_2015$niv_ins[c_tabla_enoe_1_2015$niv_ins == 0] <- NA
+c_tabla_enoe_1_2015$niv_ins <- as.factor(c_tabla_enoe_1_2015$niv_ins)
+unique(c_tabla_enoe_1_2015$niv_ins)
+```
+
+`HRSOCUP`Se verifica que la variable es de tipo numérico. El rango de la variable va de 0 a 168, dentro de ese rango se encuentran los valores definidos para la variable, pero se tiene el valor "0" que corresponde a casos en los que no aplica un valor para la variable o un valor perdido, estos casos se tratarán en el análisis de valores faltantes.
+
+```{r, error=FALSE, warning=FALSE, message=FALSE, eval=TRUE, echo=TRUE}
+# Horas ocupadas
+class(c_tabla_enoe_1_2015$hrsocup)
+min(c_tabla_enoe_1_2015$hrsocup)
+max(c_tabla_enoe_1_2015$hrsocup)
+```
+
+`ingocup` 
+
+Se verifica que la variable es de tipo numérica. Tenemos que el rango de la variable va de 0 a 180,000.
+
+También tenemos que en los valores definidos para esta variable no se considera el valor "0"; estos casos se modifican a valores faltantes, además de que considerando el criterio definido para la selección de registros, al aplicar los filtros correspondientes se espera que estos casos se eliminen, lo cual se verificará al realizar el análisis de valores faltantes.
+
+
+```{r, error=FALSE, warning=FALSE, message=FALSE, eval=TRUE, echo=TRUE}
+# Ingreso mensual
+class(c_tabla_enoe_1_2015$ingocup)
+min(c_tabla_enoe_1_2015$ingocup)
+max(c_tabla_enoe_1_2015$ingocup)
+c_tabla_enoe_1_2015$ingocup[c_tabla_enoe_1_2015$ingocup == 0] <- NA
+min(c_tabla_enoe_1_2015$ingocup, na.rm = TRUE)
+max(c_tabla_enoe_1_2015$ingocup, na.rm = TRUE)
+```
+
+`emp_ppal` 
+
+Se verifica que la variable es de tipo numérico y sus valores corresponden a los definidos para dicha variable. También se observa el valor "0" que corresponde a casos en los que no aplica un valor para la variable o un valor perdido, por lo que se modifica ese valor para considerar  esos casos como valores faltantes.
+
+Aunque la variable está definida originalmente como numérica, sabemos que realmente representa una variable categórica, por lo que para este ejercicio se convertirá a tipo factor.
+
+```{r, error=FALSE, warning=FALSE, message=FALSE, eval=TRUE, echo=TRUE}
+# Tipo de empleo
+class(c_tabla_enoe_1_2015$emp_ppal)
+unique(c_tabla_enoe_1_2015$emp_ppal)
+c_tabla_enoe_1_2015$emp_ppal[c_tabla_enoe_1_2015$emp_ppal == 0] <- NA
+c_tabla_enoe_1_2015$emp_ppal <- as.factor(c_tabla_enoe_1_2015$emp_ppal)
+unique(c_tabla_enoe_1_2015$emp_ppal)
+```
+
+`trimestre` 
+
+Esta variable se cro durante la carga, para identificar el periodo al que corresponden los datos.
+
+Se verifica que la variable es de tipo caracter y sus valores corresponden a los definidos para dicha variable. 
+
+```{r, error=FALSE, warning=FALSE, message=FALSE, eval=TRUE, echo=TRUE}
+# Trimestre
+class(c_tabla_enoe_1_2015$trimestre)
+unique(c_tabla_enoe_1_2015$trimestre)
+```
+
+Ahora, obtenemos la base con los registros correspondientes a población ocupada de acuerdo a los criterios que ya se describieron.
+
+```{r, error=FALSE, warning=FALSE, message=FALSE, echo=TRUE, eval=TRUE}
+# Realizamos el primer filtro
+c_tabla_enoe_1_2015 <- subset(c_tabla_enoe_1_2015, r_def == '00')
+eliminados1 <- nrow(d_tabla_enoe_1_2015) - nrow(c_tabla_enoe_1_2015)
+eliminados1
+
+# Realizamos el segundo filtro
+c_tabla_enoe_1_2015 <- subset(c_tabla_enoe_1_2015, c_res == '1' | c_res == '3')
+eliminados <- nrow(d_tabla_enoe_1_2015) - nrow(c_tabla_enoe_1_2015)
+eliminados2 <- eliminados - eliminados1
+eliminados2
+
+# Realizamos el tercer filtro
+c_tabla_enoe_1_2015 <- subset(c_tabla_enoe_1_2015, eda > 14 & eda < 97)
+eliminados <- nrow(d_tabla_enoe_1_2015) - nrow(c_tabla_enoe_1_2015)
+eliminados3 <- eliminados - eliminados2 - eliminados1
+eliminados3
+
+# Realizamos el cuarto filtro
+c_tabla_enoe_1_2015 <- subset(c_tabla_enoe_1_2015, clase2 == 1)
+eliminados <- nrow(d_tabla_enoe_1_2015) - nrow(c_tabla_enoe_1_2015)
+eliminados4 <- eliminados - eliminados3 - eliminados2 - eliminados1
+eliminados4
+
+# Seleccionamos las variables de interes
+variables_f <- c('mun', 'ent', 'sex', 'eda', 'e_con', 'ing7c', 'rama_est1', 'niv_ins', 'hrsocup', 'ingocup', 'emp_ppal', 'trimestre')
+c_tabla_enoe_1_2015 <- subset(c_tabla_enoe_1_2015, select = variables_f)
+
+# Dimensión de la base
+dim(c_tabla_enoe_1_2015)
+
+# Revisamos la estructura 
+str(c_tabla_enoe_1_2015)
+```
+
+** Valores faltantes**
+
+Para finalizar el proceso de limpieza, verificaremos los registros que contengan valores faltantes en alguna de las variables seleccionadas.
+
+Podemos observar que hay una importante cantidad de valores faltantes en la variable `ingocup`, ya que verificando algunos registros podemos observar que hay casos donde se reporta valor para la variable `ing7c` y/o para la variable `hrsocup`, pero parece ser que no se quiso reportar el dato específico de ingreso, lo cual suele ser muy común en las encuesta, particularmente para este tipo de variables como el ingreso.
+
+```{r, error=FALSE, warning=FALSE, message=FALSE, echo=TRUE, eval=TRUE}
+# Número de valores faltantes por variable
+faltantes <- lapply(c_tabla_enoe_1_2015, function(x) sum(is.na(x)))
+faltantes
+
+# Verificamos casos sin respuesta en la variable de Ingreso
+subset(d_tabla_enoe_1_2015, ingocup == 0 & hrsocup > 0 & (ing7c < 6 & ing7c > 0), select = c(ing7c, hrsocup, ingocup))[1:15,]
+```
+
+Checamos el número de observaciones incompletas (con valores faltantes en alguna de las variables).
+
+```{r, error=FALSE, warning=FALSE, message=FALSE, echo=TRUE, eval=TRUE}
+sum(!complete.cases(c_tabla_enoe_1_2015))
+```
+
+Dado que tenemos una importante cantidad de registros con algún valor faltante en la `ingocup` y para tratar de conservar la mayor cantidad de información haremos imputaciones para los valores faltantes.
+
+`ingocup`
+
+Vamos a verificar algunos casos:
+
+* En la variable `ing7c` tenemos la categoria _6_ que corresponde a "No percibe ingresos", entonces los registros con esta categoria, se les asigna el valor cero a `ingocup`.
+
+```{r, error=FALSE, warning=FALSE, message=FALSE, echo=TRUE, eval=TRUE}
+c_tabla_enoe_1_2015$ingocup[c_tabla_enoe_1_2015$ing7c == '6'] <- 0
+```
+
+* En la variable `hrsocup` tenemos la categoria valores con cero lo que nos indica que esa persona pudo no haber percibido ingresos, por lo que a los casos con _NA_ en la variable `ingocup` se les asigna el valor cero.
+
+```{r, error=FALSE, warning=FALSE, message=FALSE, echo=TRUE, eval=TRUE}
+c_tabla_enoe_1_2015$ingocup[c_tabla_enoe_1_2015$hrsocup == 0 & is.na(c_tabla_enoe_1_2015$ingocup)] <- 0
+```
+
+* En la variable `ing7c` tenemos la categoria _7_ que corresponde a "No especificado", entonces los registros con esta categoria, se les imputará el promedio del ingreso para la variable `ingocup`.
+
+```{r, error=FALSE, warning=FALSE, message=FALSE, echo=TRUE, eval=TRUE}
+prom_ing <- round(mean(c_tabla_enoe_1_2015$ingocup, na.rm = TRUE),0)
+c_tabla_enoe_1_2015$ingocup[c_tabla_enoe_1_2015$ing7c == '7'] <- prom_ing
+```
+
+* Verificamos cuantos casos continuan sin dato en `ingocup` y tenemos aún una importante cantidad, que después de lo verificado, resultan ser los casos donde se dió un rango de ingresos `ing7c` y un número de horas trabajadas `hrsocup`, pero no se quiso dar el dato de ingreso `ingocup`, por lo que a estos casos también asignamos el promedio del ingreso.
+
+```{r, error=FALSE, warning=FALSE, message=FALSE, echo=TRUE, eval=TRUE}
+sum(is.na(c_tabla_enoe_1_2015$ingocup))
+
+c_tabla_enoe_1_2015$ingocup[is.na(c_tabla_enoe_1_2015$ingocup)] <- prom_ing
+
+sum(is.na(c_tabla_enoe_1_2015$ingocup))
+```
+
+Verificamos que ya no hay valores faltantes en ninguna de las variables.
+
+```{r, error=FALSE, warning=FALSE, message=FALSE, echo=TRUE, eval=TRUE}
+faltantes <- lapply(c_tabla_enoe_1_2015, function(x) sum(is.na(x)))
+faltantes
+```
+
+Finalmente, verificamos estructura de la información que se obtuvo después del proceso de limpieza y transformación.
+
+```{r, error=FALSE, warning=FALSE, message=FALSE, echo=TRUE, eval=TRUE}
+# Checamos dimensión y estructura
+str(c_tabla_enoe_1_2015)
+```
+
+Cargamos la información limpia a nuestra `tabla_enoe` en el esquema _clean_.
+
+```{r, error=FALSE, warning=FALSE, message=FALSE, echo=TRUE, eval=FALSE}
+dbWriteTable(cone, c("clean", "tabla_enoe"), value = c_tabla_enoe_1_2015, append = TRUE, row.names = FALSE)
+```
+
+Verificamos en "_psql_" que la información se cargó completa.
+
+```
+SELECT COUNT (*) FROM clean.tabla_enoe;
+```
+
+Nos desconectamos de _Postgresql_.
+
+```{r, error=FALSE, warning=FALSE, message=FALSE, echo=TRUE, eval=FALSE}
+dbDisconnect(cone)
+dbUnloadDriver(drv)
+```
+
+-------------------------------------------------------------------------
+
+## 4. Análisis exploratorio de los datos.
+
+Para el análisis exploratorio utilizamos la información que se cargo a la `tabla_ufo` del esquema _clean_, que ya contiene la información que se obtuvo despúes del proceso de limpieza y transformación.
+
+**Sumario Estadístico**
+
+Obtenemos un resumen estadístico de los datos.
+
+```{r, error=FALSE, warning=FALSE, message=FALSE, echo=TRUE, eval=TRUE}
+summary(c_tabla_enoe_1_2015)
+```
+
+Destacan los siguientes resultados:
+
+* En la bse final hay una mayor proporción de hombres.
+
+* La edad promedio de las personas ocupadas es de 39 años.
+
+* La mayor proporción de personas coupadas están casadas o solteros.
+
+* La mayoria de las personas coupadas de la muestra ganan entre 1 y hasta 3 salarios mínimos .
+
+* La mayoria de la población ocupada de la muestra labora en el sector terciario, que basicamente corresponde a comercio y servicios.
+
+* La mayor proporción de personas ocupadas tienen un nivel de instrucción de "Medio superior y Superior", pero casi la misma proporción cuenta solo con "Secundaria completa".
+
+* Vemos que un poco más de la mitad de personas ocupadas de la muestra, trataban en un empleo informal.
+
+* El promedio de horas trabajadas a la semana es de 42, con un máximo de 168 que correspondería a una persona que trabaja durante todo el día, los 7 días de la semana lo cual pudiera ser un dato erroneo.
+
+  + Vamos a verificar los casos de personas que trabajan más de 12 horas díarias, considerando que trabajan los 7 días de la semana.
+
+```{r, error=FALSE, warning=FALSE, message=FALSE, echo=TRUE, eval=TRUE}
+sum(c_tabla_enoe_1_2015$hrsocup > 84)
+```
+
+
+**Análisis gráfico**
+
+Ahora haremos un análisis gráfico de la variable `ingocup`, que en este caso es nuestra única variable numérica.
+
+```{r, error=FALSE, warning=FALSE, message=FALSE, echo=TRUE, eval=TRUE}
+# Obtenemos gráficas de la variable duracion
+base <- c_tabla_enoe_1_2015
+x1 <- 11
+
+  base$id <- c(1:nrow(base))
+  grafica_0a <- ggplot(base, aes(x = base$id, y = base[,x1]))
+  grafica_0b <- ggplot(base, aes(x = base[,x1]))
+    
+  # Box-plot
+  grafica_1 <- grafica_0a + 
+  geom_boxplot(fill = '#3399CC', colour = 'black', outlier.colour = 'red', outlier.size = 3) +
+  ggtitle(paste('Box-plot ', names(base)[x1])) + 
+  scale_y_continuous(name = '') + 
+  scale_x_continuous(name = '', breaks = NULL) +
+  theme(plot.title = element_text(lineheight = .8, face = 'bold'))
+      
+  # Histograma
+  grafica_2 <- grafica_0b + 
+  geom_histogram(fill = '#33CC99', colour = 'black') +
+  ggtitle(paste('Histograma ', names(base)[x1])) + 
+  scale_x_continuous(name = '') +
+  theme(plot.title = element_text(lineheight = .8, face = 'bold'))
+    
+  # Dot-plot
+  grafica_3 <- grafica_0b + 
+  geom_dotplot(stackdir = 'centerwhole', fill = '#CC99CC') +
+  ggtitle(paste('Dot-plot ', names(base)[x1])) + 
+  scale_x_continuous(name = '') +
+  theme(plot.title = element_text(lineheight = .8, face = 'bold'))
+      
+  # Violin-plot
+  grafica_4 <- grafica_0a + 
+  geom_violin(fill = '#FF9966') +
+  ggtitle(paste('Violin-plot ', names(base)[x1])) + 
+  scale_y_continuous(name = '') + 
+  scale_x_continuous(name = '', breaks = NULL) +
+  theme(plot.title = element_text(lineheight = .8, face = 'bold'))
+    
+  # Densidad
+  grafica_5 <- grafica_0b + 
+    geom_histogram(aes(y = ..density..), fill = '#FFFFCC', colour = 'black') + 
+    geom_density(color = 'red') +
+    ggtitle(paste('Densidad ', names(base)[x1])) + 
+    scale_x_continuous(name = '') +
+    theme(plot.title = element_text(lineheight = .8, face = 'bold'))
+  
+  # QQ-plot
+  
+  # Variables que nos serviran para la qqline
+  yy <- quantile(base[,x1][!is.na(base[,x1])], c(0.25, 0.75))
+  xx <- qnorm(c(0.25, 0.75))
+  slope <- diff(yy) / diff(xx)
+  int <- yy[1L] - slope * xx[1L]
+  
+  # Generamos la gráfica qqnorm y qqline
+  grafica_6 <- ggplot(base, aes(sample = base[,x1])) +
+    ggtitle(paste('QQ-plot ', names(base)[x1])) + 
+    stat_qq(shape = 1, size = 4) +
+    geom_abline(slope = slope, intercept = int, colour = 'red', size = 1) +
+    theme(plot.title = element_text(lineheight = .8, face = 'bold'))
+  
+  # Presentamos las gráficas en la misma pantalla
+  grid.newpage()
+  pushViewport(viewport(layout = grid.layout(3, 2)))
+  vplayout <- function(x, y) viewport(layout.pos.row = x, layout.pos.col = y)
+  print(grafica_1, vp = vplayout(1, 1))
+  print(grafica_2, vp = vplayout(1, 2))
+  print(grafica_3, vp = vplayout(2, 1))
+  print(grafica_4, vp = vplayout(2, 2))
+  print(grafica_5, vp = vplayout(3, 1))
+  print(grafica_6, vp = vplayout(3, 2))
+```
+
+Ahora haremos un análisis gráfico de la variable `ingocup`, para los casos con valor menor o igual a 25,000 pesos.
+
+```{r, error=FALSE, warning=FALSE, message=FALSE, echo=FALSE, eval=TRUE}
+# Obtenemos gráficas de la variable duracion
+base <- subset(c_tabla_enoe_1_2015, ingocup <= 25000)
+x1 <- 11
+
+  base$id <- c(1:nrow(base))
+  grafica_0a <- ggplot(base, aes(x = base$id, y = base[,x1]))
+  grafica_0b <- ggplot(base, aes(x = base[,x1]))
+    
+  # Box-plot
+  grafica_1 <- grafica_0a + 
+  geom_boxplot(fill = '#3399CC', colour = 'black', outlier.colour = 'red', outlier.size = 3) +
+  ggtitle(paste('Box-plot ', names(base)[x1])) + 
+  scale_y_continuous(name = '') + 
+  scale_x_continuous(name = '', breaks = NULL) +
+  theme(plot.title = element_text(lineheight = .8, face = 'bold'))
+      
+  # Histograma
+  grafica_2 <- grafica_0b + 
+  geom_histogram(fill = '#33CC99', colour = 'black') +
+  ggtitle(paste('Histograma ', names(base)[x1])) + 
+  scale_x_continuous(name = '') +
+  theme(plot.title = element_text(lineheight = .8, face = 'bold'))
+    
+  # Dot-plot
+  grafica_3 <- grafica_0b + 
+  geom_dotplot(stackdir = 'centerwhole', fill = '#CC99CC') +
+  ggtitle(paste('Dot-plot ', names(base)[x1])) + 
+  scale_x_continuous(name = '') +
+  theme(plot.title = element_text(lineheight = .8, face = 'bold'))
+      
+  # Violin-plot
+  grafica_4 <- grafica_0a + 
+  geom_violin(fill = '#FF9966') +
+  ggtitle(paste('Violin-plot ', names(base)[x1])) + 
+  scale_y_continuous(name = '') + 
+  scale_x_continuous(name = '', breaks = NULL) +
+  theme(plot.title = element_text(lineheight = .8, face = 'bold'))
+    
+  # Densidad
+  grafica_5 <- grafica_0b + 
+    geom_histogram(aes(y = ..density..), fill = '#FFFFCC', colour = 'black') + 
+    geom_density(color = 'red') +
+    ggtitle(paste('Densidad ', names(base)[x1])) + 
+    scale_x_continuous(name = '') +
+    theme(plot.title = element_text(lineheight = .8, face = 'bold'))
+  
+  # QQ-plot
+  
+  # Variables que nos serviran para la qqline
+  yy <- quantile(base[,x1][!is.na(base[,x1])], c(0.25, 0.75))
+  xx <- qnorm(c(0.25, 0.75))
+  slope <- diff(yy) / diff(xx)
+  int <- yy[1L] - slope * xx[1L]
+  
+  # Generamos la gráfica qqnorm y qqline
+  grafica_6 <- ggplot(base, aes(sample = base[,x1])) +
+    ggtitle(paste('QQ-plot ', names(base)[x1])) + 
+    stat_qq(shape = 1, size = 4) +
+    geom_abline(slope = slope, intercept = int, colour = 'red', size = 1) +
+    theme(plot.title = element_text(lineheight = .8, face = 'bold'))
+  
+  # Presentamos las gráficas en la misma pantalla
+  grid.newpage()
+  pushViewport(viewport(layout = grid.layout(3, 2)))
+  vplayout <- function(x, y) viewport(layout.pos.row = x, layout.pos.col = y)
+  print(grafica_1, vp = vplayout(1, 1))
+  print(grafica_2, vp = vplayout(1, 2))
+  print(grafica_3, vp = vplayout(2, 1))
+  print(grafica_4, vp = vplayout(2, 2))
+  print(grafica_5, vp = vplayout(3, 1))
+  print(grafica_6, vp = vplayout(3, 2))
+```
+
+-------------------------------------------------------------------------
+
+## 6. Anexo
+
+* Tabla de categorías de la variable `ent`
+
+<center>![](imagenes/imagen9.png)</center>
+
+
+* Tabla de categorías de la variable `trimestre`
+
+<center>![](imagenes/imagen10.png)</center>

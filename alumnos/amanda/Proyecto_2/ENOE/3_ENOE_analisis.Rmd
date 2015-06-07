@@ -1,0 +1,335 @@
+---
+title: "Análisis de la Base ENOE"
+author: "Amanda Balderas M."
+date: "Junio 2015"
+output: html_document
+---
+
+```{r, error=FALSE, warning=FALSE, message=FALSE, echo=FALSE, eval=TRUE}
+# Limpiamos objetos
+rm(list = ls())
+
+# Cerramos gráficas
+graphics.off()
+
+# Definiendo ruta de trabajo
+setwd("C:/Users/Amanda29/Documents/archivos_gran_escala/Proyecto_2/ENOE")
+
+# Cargamos librerías
+library(RPostgreSQL)
+library(ggplot2)
+library(tidyr)
+library(dplyr)
+library(maptools)
+library(rgdal)
+library(ggmap)
+library(geoR)
+library(gstat)
+```
+
+------------------------------------------------------------------------
+
+**Objetivo**
+
+Presentar el análisis realizado para la base de datos `base_ENOE`. En este ejercicio se analiza particularmente los datos correspondientes a la información publicada para el primer trimestre de 2015.
+
+El análisis se enfocará en verificar las diferencias de ingreso entre personas ocupadas que tienen un empleo informal y personas ocupadas con empleo formal.
+
+------------------------------------------------------------------------
+
+```{r, error=FALSE, warning=FALSE, message=FALSE, echo=FALSE, eval=TRUE, cache=TRUE}
+# Nos conectamos a base_enoe en Postgresql
+drv <- dbDriver("PostgreSQL")
+cone <- dbConnect(drv, dbname="base_enoe", host="localhost", port=5432, user="postgres", password="bameam29")
+
+# Verificamos que la tabla existe
+#dbExistsTable(cone, c("clean", "tabla_enoe"))
+
+# Leeemos la tabla
+c_tabla_enoe <- dbReadTable(cone, c("clean_particion", "tabla_enoe_1_2015"))
+#c_tabla_enoe <- dbGetQuery(cone, "select * from clean.tabla_enoe where trimestre = '1_2015'")
+```
+
+En el análisis de la `base_enoe` se divide en los siguientes puntos:
+
+
+1. Análisis descriptivo.
+
+2. Análisis espacial.
+
+
+### 1. Análisis descriptivo
+
+
+Primero verificamos la proporción de registros para tipo de empleo informal y formal. Podemos observar que la muestra final que estamos utilizando tiene ligeramente una mayor proporción de personas ocupadas en el empleo informal.
+
+```{r, error=FALSE, warning=FALSE, message=FALSE, echo=FALSE, eval=TRUE}
+# Con la finalidad de facilitar el manejo de la información y dado el interés particular de realizar un análisis por tipo de empleo, se divide la base en registros formal e informal
+c_tabla_enoe_informal <- subset(c_tabla_enoe, emp_ppal == '1')
+c_tabla_enoe_formal <- subset(c_tabla_enoe, emp_ppal == '2')
+```
+
+```{r, error=FALSE, warning=FALSE, message=FALSE, echo=FALSE, eval=TRUE}
+# Proporcion de mujeres y hombres
+frec <- round(prop.table(table(c_tabla_enoe$emp_ppal)),2) * 100
+names(frec) <- c('Informal', 'Formal')
+frec
+```
+
+Ahora obtenemos el ingreso mínimo, promedio y máximo total, para empleo infromal y formal. Podemos ver que en promedio las personas coupadas en el emploe formal obtienen mayores ingresos, sin embargo podemos ver que hay personas en el empleo informal que tienen ingresos de 150,000 pesos mensuales.
+
+```{r, error=FALSE, warning=FALSE, message=FALSE, echo=FALSE, eval=TRUE}
+ingresos1 <- c(min(c_tabla_enoe$ingocup), min(c_tabla_enoe_informal$ingocup), min(c_tabla_enoe_formal$ingocup))
+ingresos1 <- c(ingresos1, c(mean(c_tabla_enoe$ingocup), mean(c_tabla_enoe_informal$ingocup), mean(c_tabla_enoe_formal$ingocup)))
+ingresos1 <- c(ingresos1, c(max(c_tabla_enoe$ingocup), max(c_tabla_enoe_informal$ingocup), max(c_tabla_enoe_formal$ingocup)))
+ingresos <- data.frame(Genero = rep(c('Total', 'Informal', 'Formal'), 3), 
+                       Ingreso = c(rep('Mínimo', 3), rep('Promedio', 3), rep('Máximo', 3)), 
+                       Valor = round(ingresos1, 0))
+ingresos
+```
+
+También verificamos la edad mínima, promedio y máxima total, de personas ocupadas en el empleo informal y formal. Vemos que no hay diferencia en las edades.
+
+```{r, error=FALSE, warning=FALSE, message=FALSE, echo=FALSE, eval=TRUE}
+edades1 <- c(min(c_tabla_enoe$eda), min(c_tabla_enoe_informal$eda), min(c_tabla_enoe_formal$eda))
+edades1 <- c(edades1, c(mean(c_tabla_enoe$eda), mean(c_tabla_enoe_informal$eda), mean(c_tabla_enoe_formal$eda)))
+edades1 <- c(edades1, c(max(c_tabla_enoe$eda), max(c_tabla_enoe_informal$eda), max(c_tabla_enoe_formal$eda)))
+edades <- data.frame(Genero = rep(c('Total', 'Informal', 'Formal'), 3), 
+                       Edad = c(rep('Mínimo', 3), rep('Promedio', 3), rep('Máximo', 3)), 
+                       Valor = round(edades1, 0))
+edades
+```
+
+Revisemos las horas trabajadas a la semana considerando el mínimo, promedio y máximo total, para tipo de empleo informal y formal. Podemos ver que en promedio las personas ocupadas en el empleo formal tienen más horas trabajadas a la semana.
+
+```{r, error=FALSE, warning=FALSE, message=FALSE, echo=FALSE, eval=TRUE}
+hrsocup1 <- c(min(c_tabla_enoe$hrsocup), min(c_tabla_enoe_informal$hrsocup), min(c_tabla_enoe_formal$hrsocup))
+hrsocup1 <- c(hrsocup1, c(mean(c_tabla_enoe$hrsocup), mean(c_tabla_enoe_informal$hrsocup), mean(c_tabla_enoe_formal$hrsocup)))
+hrsocup1 <- c(hrsocup1, c(max(c_tabla_enoe$hrsocup), max(c_tabla_enoe_informal$hrsocup), max(c_tabla_enoe_formal$hrsocup)))
+hrsocup <- data.frame(Genero = rep(c('Nacional', 'Informal', 'Formal'), 3), 
+                       Horas = c(rep('Mínimo', 3), rep('Promedio', 3), rep('Máximo', 3)), 
+                       Valor = round(hrsocup1, 0))
+hrsocup
+```
+
+Verificando el ingreso promedio de los las personas ocupadas en el empleo informal por nivel de instrucción se observa que hay una proporción importante de personas que laboran en el empleo informal y que tienen un nivel de instrucción "Medio superior o Superor".
+
+```{r, error=FALSE, warning=FALSE, message=FALSE, echo=FALSE, eval=TRUE}
+ing_niv_ins <- c_tabla_enoe %>%
+    group_by(niv_ins, emp_ppal) %>%
+    summarise(INGRESO = round(mean(ingocup), 0), PARTICIPA = round(n()*100/nrow(c_tabla_enoe), 0)) %>%
+    data.frame() %>%
+    filter(niv_ins != '5')
+ing_niv_ins
+
+# Graficamos
+ggplot(data = ing_niv_ins, aes(x = niv_ins, y = INGRESO, fill = niv_ins)) +
+  geom_bar(stat = 'identity') +
+  facet_wrap(~ emp_ppal) +
+  theme(legend.position="none") +
+  scale_x_discrete(name = "", labels = c("Primaria incomp.", "Primaria", "Secundaria", "Medio superior y sup.")) +
+  coord_flip() +
+  scale_y_continuous(name = "") +
+  ggtitle("Ingreso promedio por nivel de instrucción")
+```
+
+Ahora consideremos el ingreso promedio, empleo informal y formal por actividad económica.
+
+Podemos observar que en el empleo informal las personas obtienen un mayor ingreso en las actividades del sector secundario, mientras que en el empleo formal se obtiene un ingreso promedio mayor en las actividades terciarias.
+
+```{r, error=FALSE, warning=FALSE, message=FALSE, echo=FALSE, eval=TRUE}
+ing_rama <- c_tabla_enoe %>%
+    group_by(rama_est1, emp_ppal) %>%
+    summarise(INGRESO = round(mean(ingocup), 0), PARTICIPA = round(n()*100/nrow(c_tabla_enoe), 0)) %>%
+    data.frame() %>%
+    filter(rama_est1 != '4')
+ing_rama
+
+# Graficamos
+ggplot(data = ing_rama, aes(x = rama_est1, y = INGRESO, fill = rama_est1)) +
+  geom_bar(stat = 'identity') +
+  facet_wrap(~ emp_ppal) +
+  theme(legend.position="none") +
+  coord_flip() +
+  scale_x_discrete(name = "", labels = c("Primario", "Secundario", "Terciario")) +
+  scale_y_continuous(name = "") +
+  scale_fill_hue(c = 60, l = 50) +
+  ggtitle("Ingreso promedio por actividad económica")
+```
+
+
+### 2. Análisis espacial
+
+
+Para poder realizar un análisis espacial se incluyen las variables `municipio`, `longitud` y `latitud` en nuestra información.
+
+Para crear la variable `minicipio` vamos a considerar las valores de las variables `ent` y `mun`, con estas variables se crearán los valores únicos por municipio.
+
+```{r, error=FALSE, warning=FALSE, message=FALSE, eval=TRUE, echo=FALSE}
+# Creamos variable
+c_tabla_enoe$municipio <- as.factor(paste0(c_tabla_enoe$mun, c_tabla_enoe$ent))
+```
+
+Para obtener las variables `longitud` y `latitud` por municipio, se utilizó la información contenida en el _Shapefile_ de los municipios de México. Está información se obtuvo de la página oficial del INEGI, y proviene del Marco Geoestadístico 2013 del Inventario Nacional de Viviendas 2012. 
+
+<center>![](imagenes/imagen7.png)</center>
+
+```{r, error=FALSE, warning=FALSE, message=FALSE, echo=FALSE, eval=TRUE, cache=TRUE}
+# Cargamos el shapefile
+mun_shp <- readOGR("shapes" , "Municipios_2013")
+names(mun_shp)
+
+# Creamos la variable MUNICIPIO
+mun_shp@data$municipio <- paste0(as.character(mun_shp@data$CVE_ENT), as.character(mun_shp@data$CVE_MUN))
+
+# Obtenemos el dataframe
+municipios <- fortify(mun_shp, region = "municipio")
+
+# Obtenemos latitud y logitud promedio por municipio
+agrupa_mun <- subset(municipios, select = c('id', 'long', 'lat'))
+agrupa_mun <- agrupa_mun %>%
+  group_by(id) %>%
+  summarise(longitud = mean(long), latitud = mean(lat))
+colnames(agrupa_mun)[1] <- "municipio"
+
+# Asignamos lo valores de logitud y latitud
+c_tabla_enoe <- merge(x = c_tabla_enoe, y = agrupa_mun, by = "municipio", all.x = TRUE)
+```
+
+Vamos a observar la dispersión de los datos considerando las variables `longitud` y `latitud` donde cada punto representa la variable de `ing7c`.
+
+Tenemos que en general se observa una concentración de datos en la zona centro sur del país y se verifican menores ingresos para el empleo informal.
+
+```{r, error=FALSE, warning=FALSE, message=FALSE, echo=FALSE, eval=TRUE}
+# Gráfica para informal
+c_tabla_enoe_informal <- subset(c_tabla_enoe, emp_ppal == '1')
+graf1 <- ggplot(data = c_tabla_enoe_informal, aes(x = longitud, y = latitud)) +
+          geom_point(aes(colour = ing7c), size = 1) +
+          labs(title = 'Dispersión espacial de los registros de mujeres') +
+          scale_x_continuous(name = "", breaks = NULL) +
+          scale_y_continuous(name = "", breaks = NULL)
+
+# Gráfica para formal
+c_tabla_enoe_formal <- subset(c_tabla_enoe, emp_ppal == '2')
+graf2 <- ggplot(data = c_tabla_enoe_formal, aes(x = longitud, y = latitud)) +
+          geom_point(aes(colour = ing7c), size = 1) +
+          labs(title = 'Dispersión espacial de los registros de hombres') +
+          scale_x_continuous(name = "", breaks = NULL) +
+          scale_y_continuous(name = "", breaks = NULL)
+
+print(graf1)
+print(graf2)
+rm(list = c('graf1', 'graf2'))
+```
+
+Ahora vamos a obtener el ingreso mensual promedio por municipio, para mujeres y hombres, y checamos los resultados en mapas, discretizando el resultado del ingreso promedio, considerando la siguiente clasificación:
+
+<center>![](imagenes/imagen8.png)</center>
+
+
+Para la categorización estamos tomando de manera general, y con la finalidad de considerar una variable homogénea, el salario mínimo para el área geográfica A (70.10 pesos diarios), establecido por la Comisión Nacional de los Salarios Mínimos y que se encuentra vigente a partir del 1 de abril de 2015.
+
+Para obtener el ingreso mensual se consideran meses de 30 días, teniendo como resultado un ingreso de 2,103 pesos mensuales.
+
+Verificamos el ingreso máximo y mínimo promedio por municipio y tipo de empleo.
+
+```{r, error=FALSE, warning=FALSE, message=FALSE, echo=FALSE, eval=TRUE, cache=TRUE}
+# Obtenemos ingreso promedio
+# Informal
+ingreso_informal <- c_tabla_enoe_informal %>%
+               group_by(municipio) %>%
+               summarise(INGRESO_informal = round(mean(ingocup), 0))
+# Formal
+ingreso_formal <- c_tabla_enoe_formal %>%
+               group_by(municipio) %>%
+               summarise(INGRESO_formal = round(mean(ingocup), 0))
+
+# Verificamos el minimo y máximo
+# Informal
+print("Ingreso promedio mínimo (Informal):")
+min(ingreso_informal$INGRESO_informal)
+print("Ingreso promedio mínimo (Informal):")
+max(ingreso_informal$INGRESO_informal)
+
+# Formal
+print("Ingreso promedio mínimo (Formal):")
+min(ingreso_formal$INGRESO_formal)
+print("Ingreso promedio máximo (Formal):")
+max(ingreso_formal$INGRESO_formal)
+```
+
+```{r, error=FALSE, warning=FALSE, message=FALSE, echo=FALSE, eval=TRUE, cache=TRUE}
+# Creamos la variable discretizada del ingreso
+# Informal
+ingreso_informal$INGRESO_inf[ingreso_informal$INGRESO_informal <= 2103] <- '1'
+ingreso_informal$INGRESO_inf[ingreso_informal$INGRESO_informal > 2103 & ingreso_informal$INGRESO_informal <= 4206] <- '2'
+ingreso_informal$INGRESO_inf[ingreso_informal$INGRESO_informal > 4206 & ingreso_informal$INGRESO_informal <= 6309] <- '3'
+ingreso_informal$INGRESO_inf[ingreso_informal$INGRESO_informal > 6309 & ingreso_informal$INGRESO_informal <= 10515] <- '4'
+ingreso_informal$INGRESO_inf[ingreso_informal$INGRESO_informal > 10515] <- '5'
+
+# Formal
+ingreso_formal$INGRESO_for[ingreso_formal$INGRESO_formal <= 2103] <- '1'
+ingreso_formal$INGRESO_for[ingreso_formal$INGRESO_formal > 2103 & ingreso_formal$INGRESO_formal <= 4206] <- '2'
+ingreso_formal$INGRESO_for[ingreso_formal$INGRESO_formal > 4206 & ingreso_formal$INGRESO_formal <= 6309] <- '3'
+ingreso_formal$INGRESO_for[ingreso_formal$INGRESO_formal > 6309 & ingreso_formal$INGRESO_formal <= 10515] <- '4'
+ingreso_formal$INGRESO_for[ingreso_formal$INGRESO_formal > 10515] <- '5'
+
+# Generamos el dataframe para el mapa
+# Informal
+municipios <- municipios %>%
+  mutate(municipio = id) %>%
+  left_join(ingreso_informal)
+# Formal
+municipios <- municipios %>%
+  left_join(ingreso_formal)
+```
+
+Obtenemos el mapa que nos representa el ingreso promedio por municipio por tipo de coupación "informal" y "formal", el ingreso promedio está categorizado en salarios mínimos.
+
+```{r, error=FALSE, warning=FALSE, message=FALSE, echo=FALSE, eval=TRUE, cache=TRUE}
+# Mapa mujeres
+graf1 <- ggplot(data = municipios, aes(long, lat, group = group, fill = INGRESO_inf)) + 
+  geom_polygon(color = 'darkgray', size = 0.25) +
+  labs(title = 'Ingreso promedio por municipio (Empleo Informal)', fill = 'Ingreso') +
+  scale_x_continuous(name = "", breaks = NULL) +
+  scale_y_continuous(name = "", breaks = NULL) +
+  scale_fill_discrete(labels = c("Hasta 1 salario", "Entre 1 y 2", "Entre 2 y 3", "Entre 3 y 5", "Más de 5 salario")) +
+  coord_fixed()
+
+graf2 <- ggplot(data = municipios, aes(long, lat, group = group, fill = INGRESO_for)) + 
+  geom_polygon(color = 'darkgray', size = 0.25) +
+  labs(title = 'Ingreso promedio por municipio (Empleo Formal)', fill = 'Ingreso') +
+  scale_x_continuous(name = "", breaks = NULL) +
+  scale_y_continuous(name = "", breaks = NULL) +
+  scale_fill_brewer(palette = "Spectral") +
+  scale_fill_discrete(labels = c("Hasta 1 salario", "Entre 1 y 2", "Entre 2 y 3", "Entre 3 y 5", "Más de 5 salario")) +
+  coord_fixed()
+
+print(graf1)
+print(graf2)
+rm(list = c('graf1', 'graf2'))
+```
+
+Verificamos la proporción de municipios de acuerdo al nivel de ingreso promedio discretizado por tipo de empleo. 
+
+Para el empleo informal, tenemos que la mayor parte de los municipios entre en el rango de "Entre 1 y 2 salarios mínimos".
+
+```{r, error=FALSE, warning=FALSE, message=FALSE, echo=FALSE, eval=TRUE}
+print("Proporción de municipios por nivel de ingreso (Informal)")
+frec_informal <- round(prop.table(table(ingreso_informal$INGRESO_inf)), 2) * 100
+frec_informal
+```
+
+Mientras que, para el empleo formal la mayor parte de municipios está en la categoría de "Entre 2 y 3" salarios mínimos.
+
+```{r, error=FALSE, warning=FALSE, message=FALSE, echo=FALSE, eval=TRUE}
+print("Proporción de municipios por nivel de ingreso (Formal)")
+frec_formal <- round(prop.table(table(ingreso_formal$INGRESO_for)), 2) * 100
+frec_formal
+```
+
+```{r, error=FALSE, message=FALSE, warning=FALSE, echo=FALSE, eval=FALSE}
+# Nos desconectamos de Postgresql
+dbDisconnect(cone)
+dbUnloadDriver(drv)
+```

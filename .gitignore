@@ -23,3 +23,5 @@
 **/*.RData
 
 **/.DS_Store
+! 0_ENOE_flujo_trabajo.pdf
+.pdf

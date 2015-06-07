@@ -1,0 +1,447 @@
+---
+title: "Base de Datos ENOE en Postgresql"
+author: "Amanda Balderas M."
+date: "Junio 2015"
+output: html_document
+---
+
+```{r, error=FALSE, message=FALSE, warning=FALSE, echo=FALSE, eval=TRUE}
+# Definiendo ruta de trabajo
+setwd("C:/Users/Amanda29/Documents/archivos_gran_escala/Proyecto_2/ENOE")
+```
+
+-------------------------------------------------------------------------
+
+**Objetivo**
+
+Describir el proceso mediante el cual se realizó la creación de la base de datos `base_enoe` en Postgresql.
+
+-------------------------------------------------------------------------
+
+**Introducción**
+
+Contamos con una serie de archivos en formato "_dbf_" que corresponden a la información trimestral de los microdatos publicados de la Encuesta Nacional de Ocupación y Empleo, que se integrarán en una base de datos que llamaremos `base_enoe`, esta base estará conformada por tablas particionadas por trimestre.
+
+La base tendrá la siguiente estructura:
+
+<center>![](imagenes/enoe2.png)</center>
+
+
+La implementación para la creación de la base de datos se realizó utilizando "_psql_" (terminal de Postgrest) y "_R_".
+
+-------------------------------------------------------------------------
+
+**Creación de la base**
+
+A continuación se describen los pasos que se siguieron para obtener la base de datos `base_enoe`:
+
+
+1. Creamos la base de datos con el nombre: `base_enoe`.
+
+```
+CREATE DATABASE base_enoe;
+```
+
+
+2. Nos conectamos a la base.
+
+```
+\connect base_enoe
+```
+
+
+3. Creamos esquemas para la base.
+
+```
+CREATE SCHEMA dirty;
+CREATE SCHEMA clean;
+CREATE SCHEMA output;
+CREATE SCHEMA mis_extensiones;
+CREATE SCHEMA dirty_particion;
+CREATE SCHEMA clean_particion;
+CREATE SCHEMA "$user";
+CREATE SCHEMA shameful;
+CREATE SCHEMA playground;
+CREATE SCHEMA mining;
+CREATE SCHEMA ml;
+```
+
+
+4. Modificamos el path de búsqueda.
+
+```
+ALTER DATABASE base_enoe SET SEARCH_PATH=dirty, clean, output, mis_extensiones, dirty_particion, clean_particion, "$user", shameful, playground, mining, ml;
+```
+
+
+5. Se dan los permisos en los esquemas _dirty_ y _clean_.
+
+```
+grant usage on schema dirty to public;
+alter default privileges in schema dirty 
+grant select, references on tables to public;
+alter default privileges in schema dirty
+grant select, update on sequences to public;
+alter default privileges in schema dirty
+grant execute on functions to public;
+alter default privileges in schema dirty
+grant usage on types to public;
+grant usage on schema clean to public;
+alter default privileges in schema clean 
+grant select, references on tables to public;
+alter default privileges in schema clean
+grant select, update on sequences to public;
+alter default privileges in schema clean
+grant execute on functions to public;
+alter default privileges in schema clean
+grant usage on types to public;
+```
+
+
+6. Creamos extensiones.
+
+```
+CREATE EXTENSION dblink SCHEMA mis_extensiones;
+CREATE EXTENSION file_fdw SCHEMA mis_extensiones;
+CREATE EXTENSION fuzzystrmatch SCHEMA mis_extensiones;
+CREATE EXTENSION hstore SCHEMA mis_extensiones;
+CREATE EXTENSION pgcrypto SCHEMA mis_extensiones;
+CREATE EXTENSION postgres_fdw SCHEMA mis_extensiones;
+CREATE EXTENSION tablefunc SCHEMA mis_extensiones;
+CREATE EXTENSION cube SCHEMA mis_extensiones;
+CREATE EXTENSION dict_xsyn SCHEMA mis_extensiones;
+CREATE EXTENSION pg_trgm SCHEMA mis_extensiones;
+CREATE EXTENSION "uuid-ossp" SCHEMA mis_extensiones;
+```
+
+7. Creamos la "_tabla padre_" en nuestro esquema _dirty_, la tabla se llamará `tabla_enoe`.
+En teoria, en esta tabla se debería cargar toda la información disponible; sin embargo para este ejercicio se creará una tabla con algunas variables seleccionadas.
+
+```
+CREATE TABLE dirty.tabla_enoe (
+  r_def varchar,
+  mun varchar,
+  ent varchar,
+  c_res varchar,
+  sex varchar,
+  eda varchar,
+  e_con varchar,
+  clase2 smallint,
+  ing7c smallint,
+  rama_est1 smallint,
+  niv_ins smallint,
+  hrsocup smallint,
+  ingocup integer,
+  emp_ppal smallint,
+  trimestre varchar
+  );
+```
+
+
+8. Verificamos que se creo la tabla `tabla_enoe` en el esquema _dirty_.
+
+```
+\dt
+```
+
+
+9. Creamos las "_tablas hijas_" que corresponden a las particiones por trimestre en el esquema _dirty_particion_.
+
+```
+CREATE TABLE dirty_particion.tabla_enoe_1_2005 (CHECK (trimestre = '1_2005')) INHERITS (dirty.tabla_enoe);
+CREATE TABLE dirty_particion.tabla_enoe_2_2005 (CHECK (trimestre = '2_2005')) INHERITS (dirty.tabla_enoe);
+CREATE TABLE dirty_particion.tabla_enoe_3_2005 (CHECK (trimestre = '3_2005')) INHERITS (dirty.tabla_enoe);
+CREATE TABLE dirty_particion.tabla_enoe_4_2005 (CHECK (trimestre = '4_2005')) INHERITS (dirty.tabla_enoe);
+CREATE TABLE dirty_particion.tabla_enoe_1_2006 (CHECK (trimestre = '1_2006')) INHERITS (dirty.tabla_enoe);
+CREATE TABLE dirty_particion.tabla_enoe_2_2006 (CHECK (trimestre = '2_2006')) INHERITS (dirty.tabla_enoe);
+CREATE TABLE dirty_particion.tabla_enoe_3_2006 (CHECK (trimestre = '3_2006')) INHERITS (dirty.tabla_enoe);
+CREATE TABLE dirty_particion.tabla_enoe_4_2006 (CHECK (trimestre = '4_2006')) INHERITS (dirty.tabla_enoe);
+CREATE TABLE dirty_particion.tabla_enoe_1_2007 (CHECK (trimestre = '1_2007')) INHERITS (dirty.tabla_enoe);
+CREATE TABLE dirty_particion.tabla_enoe_2_2007 (CHECK (trimestre = '2_2007')) INHERITS (dirty.tabla_enoe);
+CREATE TABLE dirty_particion.tabla_enoe_3_2007 (CHECK (trimestre = '3_2007')) INHERITS (dirty.tabla_enoe);
+CREATE TABLE dirty_particion.tabla_enoe_4_2007 (CHECK (trimestre = '4_2007')) INHERITS (dirty.tabla_enoe);
+CREATE TABLE dirty_particion.tabla_enoe_1_2008 (CHECK (trimestre = '1_2008')) INHERITS (dirty.tabla_enoe);
+CREATE TABLE dirty_particion.tabla_enoe_2_2008 (CHECK (trimestre = '2_2008')) INHERITS (dirty.tabla_enoe);
+CREATE TABLE dirty_particion.tabla_enoe_3_2008 (CHECK (trimestre = '3_2008')) INHERITS (dirty.tabla_enoe);
+CREATE TABLE dirty_particion.tabla_enoe_4_2008 (CHECK (trimestre = '4_2008')) INHERITS (dirty.tabla_enoe);
+CREATE TABLE dirty_particion.tabla_enoe_1_2009 (CHECK (trimestre = '1_2009')) INHERITS (dirty.tabla_enoe);
+CREATE TABLE dirty_particion.tabla_enoe_2_2009 (CHECK (trimestre = '2_2009')) INHERITS (dirty.tabla_enoe);
+CREATE TABLE dirty_particion.tabla_enoe_3_2009 (CHECK (trimestre = '3_2009')) INHERITS (dirty.tabla_enoe);
+CREATE TABLE dirty_particion.tabla_enoe_4_2009 (CHECK (trimestre = '4_2009')) INHERITS (dirty.tabla_enoe);
+CREATE TABLE dirty_particion.tabla_enoe_1_2010 (CHECK (trimestre = '1_2010')) INHERITS (dirty.tabla_enoe);
+CREATE TABLE dirty_particion.tabla_enoe_2_2010 (CHECK (trimestre = '2_2010')) INHERITS (dirty.tabla_enoe);
+CREATE TABLE dirty_particion.tabla_enoe_3_2010 (CHECK (trimestre = '3_2010')) INHERITS (dirty.tabla_enoe);
+CREATE TABLE dirty_particion.tabla_enoe_4_2010 (CHECK (trimestre = '4_2010')) INHERITS (dirty.tabla_enoe);
+CREATE TABLE dirty_particion.tabla_enoe_1_2011 (CHECK (trimestre = '1_2011')) INHERITS (dirty.tabla_enoe);
+CREATE TABLE dirty_particion.tabla_enoe_2_2011 (CHECK (trimestre = '2_2011')) INHERITS (dirty.tabla_enoe);
+CREATE TABLE dirty_particion.tabla_enoe_3_2011 (CHECK (trimestre = '3_2011')) INHERITS (dirty.tabla_enoe);
+CREATE TABLE dirty_particion.tabla_enoe_4_2011 (CHECK (trimestre = '4_2011')) INHERITS (dirty.tabla_enoe);
+CREATE TABLE dirty_particion.tabla_enoe_1_2012 (CHECK (trimestre = '1_2012')) INHERITS (dirty.tabla_enoe);
+CREATE TABLE dirty_particion.tabla_enoe_2_2012 (CHECK (trimestre = '2_2012')) INHERITS (dirty.tabla_enoe);
+CREATE TABLE dirty_particion.tabla_enoe_3_2012 (CHECK (trimestre = '3_2012')) INHERITS (dirty.tabla_enoe);
+CREATE TABLE dirty_particion.tabla_enoe_4_2012 (CHECK (trimestre = '4_2012')) INHERITS (dirty.tabla_enoe);
+CREATE TABLE dirty_particion.tabla_enoe_1_2013 (CHECK (trimestre = '1_2013')) INHERITS (dirty.tabla_enoe);
+CREATE TABLE dirty_particion.tabla_enoe_2_2013 (CHECK (trimestre = '2_2013')) INHERITS (dirty.tabla_enoe);
+CREATE TABLE dirty_particion.tabla_enoe_3_2013 (CHECK (trimestre = '3_2013')) INHERITS (dirty.tabla_enoe);
+CREATE TABLE dirty_particion.tabla_enoe_4_2013 (CHECK (trimestre = '4_2013')) INHERITS (dirty.tabla_enoe);
+CREATE TABLE dirty_particion.tabla_enoe_1_2014 (CHECK (trimestre = '1_2014')) INHERITS (dirty.tabla_enoe);
+CREATE TABLE dirty_particion.tabla_enoe_2_2014 (CHECK (trimestre = '2_2014')) INHERITS (dirty.tabla_enoe);
+CREATE TABLE dirty_particion.tabla_enoe_3_2014 (CHECK (trimestre = '3_2014')) INHERITS (dirty.tabla_enoe);
+CREATE TABLE dirty_particion.tabla_enoe_4_2014 (CHECK (trimestre = '4_2014')) INHERITS (dirty.tabla_enoe);
+CREATE TABLE dirty_particion.tabla_enoe_1_2015 (CHECK (trimestre = '1_2015')) INHERITS (dirty.tabla_enoe);
+```
+
+
+10. Creamos la función para el particionamiento de la `tabla_enoe` del esquema _dirty_.
+
+```
+CREATE OR REPLACE FUNCTION dirty_particion.enoe_trim_function()
+RETURNS TRIGGER AS 
+$BODY$begin
+  IF (NEW.trimestre = '1_2005') THEN INSERT INTO dirty_particion.tabla_enoe_1_2005 VALUES (NEW.*);
+ELSEIF (NEW.trimestre = '2_2005') THEN INSERT INTO dirty_particion.tabla_enoe_2_2005 VALUES (NEW.*);
+ELSEIF (NEW.trimestre = '3_2005') THEN INSERT INTO dirty_particion.tabla_enoe_3_2005 VALUES (NEW.*);
+ELSEIF (NEW.trimestre = '4_2005') THEN INSERT INTO dirty_particion.tabla_enoe_4_2005 VALUES (NEW.*);
+ELSEIF (NEW.trimestre = '1_2006') THEN INSERT INTO dirty_particion.tabla_enoe_1_2006 VALUES (NEW.*);
+ELSEIF (NEW.trimestre = '2_2006') THEN INSERT INTO dirty_particion.tabla_enoe_2_2006 VALUES (NEW.*);
+ELSEIF (NEW.trimestre = '3_2006') THEN INSERT INTO dirty_particion.tabla_enoe_3_2006 VALUES (NEW.*);
+ELSEIF (NEW.trimestre = '4_2006') THEN INSERT INTO dirty_particion.tabla_enoe_4_2006 VALUES (NEW.*);
+ELSEIF (NEW.trimestre = '1_2007') THEN INSERT INTO dirty_particion.tabla_enoe_1_2007 VALUES (NEW.*);
+ELSEIF (NEW.trimestre = '2_2007') THEN INSERT INTO dirty_particion.tabla_enoe_2_2007 VALUES (NEW.*);
+ELSEIF (NEW.trimestre = '3_2007') THEN INSERT INTO dirty_particion.tabla_enoe_3_2007 VALUES (NEW.*);
+ELSEIF (NEW.trimestre = '4_2007') THEN INSERT INTO dirty_particion.tabla_enoe_4_2007 VALUES (NEW.*);
+ELSEIF (NEW.trimestre = '1_2008') THEN INSERT INTO dirty_particion.tabla_enoe_1_2008 VALUES (NEW.*);
+ELSEIF (NEW.trimestre = '2_2008') THEN INSERT INTO dirty_particion.tabla_enoe_2_2008 VALUES (NEW.*);
+ELSEIF (NEW.trimestre = '3_2008') THEN INSERT INTO dirty_particion.tabla_enoe_3_2008 VALUES (NEW.*);
+ELSEIF (NEW.trimestre = '4_2008') THEN INSERT INTO dirty_particion.tabla_enoe_4_2008 VALUES (NEW.*);
+ELSEIF (NEW.trimestre = '1_2009') THEN INSERT INTO dirty_particion.tabla_enoe_1_2009 VALUES (NEW.*);
+ELSEIF (NEW.trimestre = '2_2009') THEN INSERT INTO dirty_particion.tabla_enoe_2_2009 VALUES (NEW.*);
+ELSEIF (NEW.trimestre = '3_2009') THEN INSERT INTO dirty_particion.tabla_enoe_3_2009 VALUES (NEW.*);
+ELSEIF (NEW.trimestre = '4_2009') THEN INSERT INTO dirty_particion.tabla_enoe_4_2009 VALUES (NEW.*);
+ELSEIF (NEW.trimestre = '1_2010') THEN INSERT INTO dirty_particion.tabla_enoe_1_2010 VALUES (NEW.*);
+ELSEIF (NEW.trimestre = '2_2010') THEN INSERT INTO dirty_particion.tabla_enoe_2_2010 VALUES (NEW.*);
+ELSEIF (NEW.trimestre = '3_2010') THEN INSERT INTO dirty_particion.tabla_enoe_3_2010 VALUES (NEW.*);
+ELSEIF (NEW.trimestre = '4_2010') THEN INSERT INTO dirty_particion.tabla_enoe_4_2010 VALUES (NEW.*);
+ELSEIF (NEW.trimestre = '1_2011') THEN INSERT INTO dirty_particion.tabla_enoe_1_2011 VALUES (NEW.*);
+ELSEIF (NEW.trimestre = '2_2011') THEN INSERT INTO dirty_particion.tabla_enoe_2_2011 VALUES (NEW.*);
+ELSEIF (NEW.trimestre = '3_2011') THEN INSERT INTO dirty_particion.tabla_enoe_3_2011 VALUES (NEW.*);
+ELSEIF (NEW.trimestre = '4_2011') THEN INSERT INTO dirty_particion.tabla_enoe_4_2011 VALUES (NEW.*);
+ELSEIF (NEW.trimestre = '1_2012') THEN INSERT INTO dirty_particion.tabla_enoe_1_2012 VALUES (NEW.*);
+ELSEIF (NEW.trimestre = '2_2012') THEN INSERT INTO dirty_particion.tabla_enoe_2_2012 VALUES (NEW.*);
+ELSEIF (NEW.trimestre = '3_2012') THEN INSERT INTO dirty_particion.tabla_enoe_3_2012 VALUES (NEW.*);
+ELSEIF (NEW.trimestre = '4_2012') THEN INSERT INTO dirty_particion.tabla_enoe_4_2012 VALUES (NEW.*);
+ELSEIF (NEW.trimestre = '1_2013') THEN INSERT INTO dirty_particion.tabla_enoe_1_2013 VALUES (NEW.*);
+ELSEIF (NEW.trimestre = '2_2013') THEN INSERT INTO dirty_particion.tabla_enoe_2_2013 VALUES (NEW.*);
+ELSEIF (NEW.trimestre = '3_2013') THEN INSERT INTO dirty_particion.tabla_enoe_3_2013 VALUES (NEW.*);
+ELSEIF (NEW.trimestre = '4_2013') THEN INSERT INTO dirty_particion.tabla_enoe_4_2013 VALUES (NEW.*);
+ELSEIF (NEW.trimestre = '1_2014') THEN INSERT INTO dirty_particion.tabla_enoe_1_2014 VALUES (NEW.*);
+ELSEIF (NEW.trimestre = '2_2014') THEN INSERT INTO dirty_particion.tabla_enoe_2_2014 VALUES (NEW.*);
+ELSEIF (NEW.trimestre = '3_2014') THEN INSERT INTO dirty_particion.tabla_enoe_3_2014 VALUES (NEW.*);
+ELSEIF (NEW.trimestre = '4_2014') THEN INSERT INTO dirty_particion.tabla_enoe_4_2014 VALUES (NEW.*);
+ELSEIF (NEW.trimestre = '1_2015') THEN INSERT INTO dirty_particion.tabla_enoe_1_2015 VALUES (NEW.*);
+  END IF;
+  RETURN NULL;
+END;$BODY$
+LANGUAGE 'plpgsql';
+
+ALTER FUNCTION dirty_particion.enoe_trim_function() OWNER TO postgres;
+```
+
+
+11. Creamos el trigger para el particionamiento en el esquema _dirty_.
+
+```
+CREATE TRIGGER enoe_trim_trigger
+  BEFORE INSERT ON dirty.tabla_enoe
+  FOR EACH ROW EXECUTE PROCEDURE dirty_particion.enoe_trim_function();
+```
+
+
+12. Cargamos los datos de cada tabla mensual.
+
+Para este paso se hace uso de "_R_", lo anterior para tener un proceso automatizado que pueda seguirse utilizando.
+
+```
+# Cargamos librerías
+library(RPostgreSQL)
+library(foreign)
+
+# Nos conectamos a base_enoe en Postgresql
+drv <- dbDriver("PostgreSQL")
+cone <- dbConnect(drv, dbname="base_enoe", host="localhost", port=5432, user="postgres", password="bameam29")
+
+# Verificamos que la tabla existe
+dbExistsTable(cone, c("dirty", "tabla_enoe"))
+
+# Función para cargar los datos
+leer_archivos <- function(lista_archivos, cone){
+  n <- nrow(lista_archivos)
+  for (i in 1:n){
+    tabla <- read.dbf(paste0("C:/Users/Amanda29/Documents/archivos_gran_escala/Proyecto_2/ENOE/datos_ENOE/", lista_archivos[i, 1], ".dbf"))
+    variables <- c('R_DEF', 'MUN', 'ENT', 'C_RES', 'SEX', 'EDA', 'E_CON', 'CLASE2', 'ING7C', 'RAMA_EST1', 'NIV_INS', 'HRSOCUP', 'INGOCUP', 'EMP_PPAL')
+    tabla <- tabla[,variables]
+    colnames(tabla) <- c('r_def', 'mun', 'ent', 'c_res', 'sex', 'eda', 'e_con', 'clase2', 'ing7c', 'rama_est1', 'niv_ins', 'hrsocup', 'ingocup', 'emp_ppal')
+    # Integramos la variable trimestre
+    tabla$trimestre <- lista_archivos[i, 2]
+    dbWriteTable(cone, c("dirty", "tabla_enoe"), value = tabla, append=TRUE, row.names = FALSE)
+  }
+}
+
+# Cargamos los datos utilizando la función que creamos anteriormente
+lista_archivos <- read.table('C:/Users/Amanda29/Documents/archivos_gran_escala/Proyecto_2/ENOE/datos_ENOE/lista_archivos_ENOE.txt')
+leer_archivos(lista_archivos, cone)
+
+# Cerramos la conexión
+dbDisconnect(cone)
+dbUnloadDriver(drv)
+```
+
+12. Verificamos en "_psql_" que la información se cargo completa.
+
+```
+SELECT COUNT (*) FROM dirty.tabla_enoe;
+```
+
+
+En los siguientes puntos se crean las tablas que se incluyen en el esquema _clean_, en estas tablas se cargará la información que resulte del proceso de limpieza y transformación.
+
+13. Creamos la "_tabla padre_" en nuestro esquema _clean_, la tabla se llamará `tabla_enoe`.
+
+```
+CREATE TABLE clean.tabla_enoe (
+  mun varchar,
+  ent varchar,
+  sex varchar,
+  eda smallint,
+  e_con varchar,
+  ing7c varchar,
+  rama_est1 varchar,
+  niv_ins varchar,
+  hrsocup smallint,
+  ingocup integer,
+  emp_ppal varchar,
+  trimestre varchar
+  );
+```
+
+
+14. Verificamos que se creo la tabla `tabla_enoe` en el esquema _clean_.
+
+```
+\dt
+```
+
+
+15. Creamos las "_tablas hijas_" que corresponden a las particiones por trimestre.
+
+```
+CREATE TABLE clean_particion.tabla_enoe_1_2005 (CHECK (trimestre = '1_2005')) INHERITS (clean.tabla_enoe);
+CREATE TABLE clean_particion.tabla_enoe_2_2005 (CHECK (trimestre = '2_2005')) INHERITS (clean.tabla_enoe);
+CREATE TABLE clean_particion.tabla_enoe_3_2005 (CHECK (trimestre = '3_2005')) INHERITS (clean.tabla_enoe);
+CREATE TABLE clean_particion.tabla_enoe_4_2005 (CHECK (trimestre = '4_2005')) INHERITS (clean.tabla_enoe);
+CREATE TABLE clean_particion.tabla_enoe_1_2006 (CHECK (trimestre = '1_2006')) INHERITS (clean.tabla_enoe);
+CREATE TABLE clean_particion.tabla_enoe_2_2006 (CHECK (trimestre = '2_2006')) INHERITS (clean.tabla_enoe);
+CREATE TABLE clean_particion.tabla_enoe_3_2006 (CHECK (trimestre = '3_2006')) INHERITS (clean.tabla_enoe);
+CREATE TABLE clean_particion.tabla_enoe_4_2006 (CHECK (trimestre = '4_2006')) INHERITS (clean.tabla_enoe);
+CREATE TABLE clean_particion.tabla_enoe_1_2007 (CHECK (trimestre = '1_2007')) INHERITS (clean.tabla_enoe);
+CREATE TABLE clean_particion.tabla_enoe_2_2007 (CHECK (trimestre = '2_2007')) INHERITS (clean.tabla_enoe);
+CREATE TABLE clean_particion.tabla_enoe_3_2007 (CHECK (trimestre = '3_2007')) INHERITS (clean.tabla_enoe);
+CREATE TABLE clean_particion.tabla_enoe_4_2007 (CHECK (trimestre = '4_2007')) INHERITS (clean.tabla_enoe);
+CREATE TABLE clean_particion.tabla_enoe_1_2008 (CHECK (trimestre = '1_2008')) INHERITS (clean.tabla_enoe);
+CREATE TABLE clean_particion.tabla_enoe_2_2008 (CHECK (trimestre = '2_2008')) INHERITS (clean.tabla_enoe);
+CREATE TABLE clean_particion.tabla_enoe_3_2008 (CHECK (trimestre = '3_2008')) INHERITS (clean.tabla_enoe);
+CREATE TABLE clean_particion.tabla_enoe_4_2008 (CHECK (trimestre = '4_2008')) INHERITS (clean.tabla_enoe);
+CREATE TABLE clean_particion.tabla_enoe_1_2009 (CHECK (trimestre = '1_2009')) INHERITS (clean.tabla_enoe);
+CREATE TABLE clean_particion.tabla_enoe_2_2009 (CHECK (trimestre = '2_2009')) INHERITS (clean.tabla_enoe);
+CREATE TABLE clean_particion.tabla_enoe_3_2009 (CHECK (trimestre = '3_2009')) INHERITS (clean.tabla_enoe);
+CREATE TABLE clean_particion.tabla_enoe_4_2009 (CHECK (trimestre = '4_2009')) INHERITS (clean.tabla_enoe);
+CREATE TABLE clean_particion.tabla_enoe_1_2010 (CHECK (trimestre = '1_2010')) INHERITS (clean.tabla_enoe);
+CREATE TABLE clean_particion.tabla_enoe_2_2010 (CHECK (trimestre = '2_2010')) INHERITS (clean.tabla_enoe);
+CREATE TABLE clean_particion.tabla_enoe_3_2010 (CHECK (trimestre = '3_2010')) INHERITS (clean.tabla_enoe);
+CREATE TABLE clean_particion.tabla_enoe_4_2010 (CHECK (trimestre = '4_2010')) INHERITS (clean.tabla_enoe);
+CREATE TABLE clean_particion.tabla_enoe_1_2011 (CHECK (trimestre = '1_2011')) INHERITS (clean.tabla_enoe);
+CREATE TABLE clean_particion.tabla_enoe_2_2011 (CHECK (trimestre = '2_2011')) INHERITS (clean.tabla_enoe);
+CREATE TABLE clean_particion.tabla_enoe_3_2011 (CHECK (trimestre = '3_2011')) INHERITS (clean.tabla_enoe);
+CREATE TABLE clean_particion.tabla_enoe_4_2011 (CHECK (trimestre = '4_2011')) INHERITS (clean.tabla_enoe);
+CREATE TABLE clean_particion.tabla_enoe_1_2012 (CHECK (trimestre = '1_2012')) INHERITS (clean.tabla_enoe);
+CREATE TABLE clean_particion.tabla_enoe_2_2012 (CHECK (trimestre = '2_2012')) INHERITS (clean.tabla_enoe);
+CREATE TABLE clean_particion.tabla_enoe_3_2012 (CHECK (trimestre = '3_2012')) INHERITS (clean.tabla_enoe);
+CREATE TABLE clean_particion.tabla_enoe_4_2012 (CHECK (trimestre = '4_2012')) INHERITS (clean.tabla_enoe);
+CREATE TABLE clean_particion.tabla_enoe_1_2013 (CHECK (trimestre = '1_2013')) INHERITS (clean.tabla_enoe);
+CREATE TABLE clean_particion.tabla_enoe_2_2013 (CHECK (trimestre = '2_2013')) INHERITS (clean.tabla_enoe);
+CREATE TABLE clean_particion.tabla_enoe_3_2013 (CHECK (trimestre = '3_2013')) INHERITS (clean.tabla_enoe);
+CREATE TABLE clean_particion.tabla_enoe_4_2013 (CHECK (trimestre = '4_2013')) INHERITS (clean.tabla_enoe);
+CREATE TABLE clean_particion.tabla_enoe_1_2014 (CHECK (trimestre = '1_2014')) INHERITS (clean.tabla_enoe);
+CREATE TABLE clean_particion.tabla_enoe_2_2014 (CHECK (trimestre = '2_2014')) INHERITS (clean.tabla_enoe);
+CREATE TABLE clean_particion.tabla_enoe_3_2014 (CHECK (trimestre = '3_2014')) INHERITS (clean.tabla_enoe);
+CREATE TABLE clean_particion.tabla_enoe_4_2014 (CHECK (trimestre = '4_2014')) INHERITS (clean.tabla_enoe);
+CREATE TABLE clean_particion.tabla_enoe_1_2015 (CHECK (trimestre = '1_2015')) INHERITS (clean.tabla_enoe);
+```
+
+
+16. Creamos la función para el particionamiento de la `tabla_enoe` del esquema _clean_.
+
+```
+CREATE OR REPLACE FUNCTION clean_particion.enoe_trim_function()
+RETURNS TRIGGER AS 
+$BODY$begin
+  IF (NEW.trimestre = '1_2005') THEN INSERT INTO clean_particion.tabla_enoe_1_2005 VALUES (NEW.*);
+  ELSEIF (NEW.trimestre = '1_2005') THEN INSERT INTO clean_particion.tabla_enoe_1_2005 VALUES (NEW.*);
+  ELSEIF (NEW.trimestre = '2_2005') THEN INSERT INTO clean_particion.tabla_enoe_2_2005 VALUES (NEW.*);
+  ELSEIF (NEW.trimestre = '3_2005') THEN INSERT INTO clean_particion.tabla_enoe_3_2005 VALUES (NEW.*);
+  ELSEIF (NEW.trimestre = '4_2005') THEN INSERT INTO clean_particion.tabla_enoe_4_2005 VALUES (NEW.*);
+  ELSEIF (NEW.trimestre = '1_2006') THEN INSERT INTO clean_particion.tabla_enoe_1_2006 VALUES (NEW.*);
+  ELSEIF (NEW.trimestre = '2_2006') THEN INSERT INTO clean_particion.tabla_enoe_2_2006 VALUES (NEW.*);
+  ELSEIF (NEW.trimestre = '3_2006') THEN INSERT INTO clean_particion.tabla_enoe_3_2006 VALUES (NEW.*);
+  ELSEIF (NEW.trimestre = '4_2006') THEN INSERT INTO clean_particion.tabla_enoe_4_2006 VALUES (NEW.*);
+  ELSEIF (NEW.trimestre = '1_2007') THEN INSERT INTO clean_particion.tabla_enoe_1_2007 VALUES (NEW.*);
+  ELSEIF (NEW.trimestre = '2_2007') THEN INSERT INTO clean_particion.tabla_enoe_2_2007 VALUES (NEW.*);
+  ELSEIF (NEW.trimestre = '3_2007') THEN INSERT INTO clean_particion.tabla_enoe_3_2007 VALUES (NEW.*);
+  ELSEIF (NEW.trimestre = '4_2007') THEN INSERT INTO clean_particion.tabla_enoe_4_2007 VALUES (NEW.*);
+  ELSEIF (NEW.trimestre = '1_2008') THEN INSERT INTO clean_particion.tabla_enoe_1_2008 VALUES (NEW.*);
+  ELSEIF (NEW.trimestre = '2_2008') THEN INSERT INTO clean_particion.tabla_enoe_2_2008 VALUES (NEW.*);
+  ELSEIF (NEW.trimestre = '3_2008') THEN INSERT INTO clean_particion.tabla_enoe_3_2008 VALUES (NEW.*);
+  ELSEIF (NEW.trimestre = '4_2008') THEN INSERT INTO clean_particion.tabla_enoe_4_2008 VALUES (NEW.*);
+  ELSEIF (NEW.trimestre = '1_2009') THEN INSERT INTO clean_particion.tabla_enoe_1_2009 VALUES (NEW.*);
+  ELSEIF (NEW.trimestre = '2_2009') THEN INSERT INTO clean_particion.tabla_enoe_2_2009 VALUES (NEW.*);
+  ELSEIF (NEW.trimestre = '3_2009') THEN INSERT INTO clean_particion.tabla_enoe_3_2009 VALUES (NEW.*);
+  ELSEIF (NEW.trimestre = '4_2009') THEN INSERT INTO clean_particion.tabla_enoe_4_2009 VALUES (NEW.*);
+  ELSEIF (NEW.trimestre = '1_2010') THEN INSERT INTO clean_particion.tabla_enoe_1_2010 VALUES (NEW.*);
+  ELSEIF (NEW.trimestre = '2_2010') THEN INSERT INTO clean_particion.tabla_enoe_2_2010 VALUES (NEW.*);
+  ELSEIF (NEW.trimestre = '3_2010') THEN INSERT INTO clean_particion.tabla_enoe_3_2010 VALUES (NEW.*);
+  ELSEIF (NEW.trimestre = '4_2010') THEN INSERT INTO clean_particion.tabla_enoe_4_2010 VALUES (NEW.*);
+  ELSEIF (NEW.trimestre = '1_2011') THEN INSERT INTO clean_particion.tabla_enoe_1_2011 VALUES (NEW.*);
+  ELSEIF (NEW.trimestre = '2_2011') THEN INSERT INTO clean_particion.tabla_enoe_2_2011 VALUES (NEW.*);
+  ELSEIF (NEW.trimestre = '3_2011') THEN INSERT INTO clean_particion.tabla_enoe_3_2011 VALUES (NEW.*);
+  ELSEIF (NEW.trimestre = '4_2011') THEN INSERT INTO clean_particion.tabla_enoe_4_2011 VALUES (NEW.*);
+  ELSEIF (NEW.trimestre = '1_2012') THEN INSERT INTO clean_particion.tabla_enoe_1_2012 VALUES (NEW.*);
+  ELSEIF (NEW.trimestre = '2_2012') THEN INSERT INTO clean_particion.tabla_enoe_2_2012 VALUES (NEW.*);
+  ELSEIF (NEW.trimestre = '3_2012') THEN INSERT INTO clean_particion.tabla_enoe_3_2012 VALUES (NEW.*);
+  ELSEIF (NEW.trimestre = '4_2012') THEN INSERT INTO clean_particion.tabla_enoe_4_2012 VALUES (NEW.*);
+  ELSEIF (NEW.trimestre = '1_2013') THEN INSERT INTO clean_particion.tabla_enoe_1_2013 VALUES (NEW.*);
+  ELSEIF (NEW.trimestre = '2_2013') THEN INSERT INTO clean_particion.tabla_enoe_2_2013 VALUES (NEW.*);
+  ELSEIF (NEW.trimestre = '3_2013') THEN INSERT INTO clean_particion.tabla_enoe_3_2013 VALUES (NEW.*);
+  ELSEIF (NEW.trimestre = '4_2013') THEN INSERT INTO clean_particion.tabla_enoe_4_2013 VALUES (NEW.*);
+  ELSEIF (NEW.trimestre = '1_2014') THEN INSERT INTO clean_particion.tabla_enoe_1_2014 VALUES (NEW.*);
+  ELSEIF (NEW.trimestre = '2_2014') THEN INSERT INTO clean_particion.tabla_enoe_2_2014 VALUES (NEW.*);
+  ELSEIF (NEW.trimestre = '3_2014') THEN INSERT INTO clean_particion.tabla_enoe_3_2014 VALUES (NEW.*);
+  ELSEIF (NEW.trimestre = '4_2014') THEN INSERT INTO clean_particion.tabla_enoe_4_2014 VALUES (NEW.*);
+  ELSEIF (NEW.trimestre = '1_2015') THEN INSERT INTO clean_particion.tabla_enoe_1_2015 VALUES (NEW.*);
+  END IF;
+  RETURN NULL;
+END;$BODY$
+LANGUAGE 'plpgsql';
+
+ALTER FUNCTION clean_particion.enoe_trim_function() OWNER TO postgres;
+```
+
+17. Creamos el trigger para el particionamiento en el esquema _clean_.
+
+```
+CREATE TRIGGER clean_enoe_trim_trigger
+  BEFORE INSERT ON clean.tabla_enoe
+  FOR EACH ROW EXECUTE PROCEDURE clean_particion.enoe_trim_function();
+```
+
+
+Con los pasos anteriores ya tenemos creada nuestra `base_enoe`, con la tabla `tabla_enoe` en el esquema _dirty_ que ya tiene la información original y también ya se tiene lista la `tabla_enoe` en el esquema _clean_ donde se cargará la información que resulte del proceso de limpieza.
