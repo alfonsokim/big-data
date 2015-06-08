@@ -3719,7 +3719,7 @@ docker run --link hadoop-pseudo:hadoop-pseudo --name pg_server nanounanue/docker
 </ul>
 
 <pre><code data-trim>
-# Visto en https://github.com/docker/docker/issues/8786
+## Visto en https://github.com/docker/docker/issues/8786
 docker ps -q | xargs docker inspect --format '{{ .Id }} - {{ .Name }} - {{ .NetworkSettings.IPAddress }}'
 </code></pre>
 
