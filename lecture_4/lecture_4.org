@@ -2117,22 +2117,22 @@ flume-ng agent -n agent -c . -f ingesta/hola_mundo.conf -Dflume.root.logger=INFO
 
 #+begin_html
 <pre><code data-trim>
-# Componentes
+## Componentes
 UFOAgent.sources = UFODir
 UFOAgent.channels = c1
 UFOAgent.sinks = UFOLogger
 
-# Canal
+## Canal
 UFOAgent.channels.c1.type = memory
 
-# Fuente e Interceptores
+## Fuente e Interceptores
 UFOAgent.sources.UFODir.type = spooldir
 UFOAgent.sources.UFODir.channels = c1
 UFOAgent.sources.UFODir.spoolDir = /opt/ufos
 UFOAgent.sources.UFODir.fileHeader = true
 UFOAgent.sources.UFODir.channels = c1
 
-# Sumidero
+## Sumidero
 UFOAgent.sinks.UFOLogger.type=logger
 UFOAgent.sinks.UFOLogger.channel=c1
 </code></pre>
