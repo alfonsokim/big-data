@@ -3189,22 +3189,22 @@ flume-ng agent -n agent -c . -f ingesta/hola_mundo.conf -Dflume.root.logger=INFO
 </ul>
 
 <pre><code data-trim>
-# Componentes
+## Componentes
 UFOAgent.sources = UFODir
 UFOAgent.channels = c1
 UFOAgent.sinks = UFOLogger
 
-# Canal
+## Canal
 UFOAgent.channels.c1.type = memory
 
-# Fuente e Interceptores
+## Fuente e Interceptores
 UFOAgent.sources.UFODir.type = spooldir
 UFOAgent.sources.UFODir.channels = c1
 UFOAgent.sources.UFODir.spoolDir = /opt/ufos
 UFOAgent.sources.UFODir.fileHeader = true
 UFOAgent.sources.UFODir.channels = c1
 
-# Sumidero
+## Sumidero
 UFOAgent.sinks.UFOLogger.type=logger
 UFOAgent.sinks.UFOLogger.channel=c1
 </code></pre>
@@ -3255,23 +3255,23 @@ tan rápido la generación de datos) usaremos un canal de archivo.</li>
 </ul>
 
 <pre><code data-trim>
-# Componentes
+## Componentes
 UFOAgent.sources = UFODir
 UFOAgent.channels = archivo
 UFOAgent.sinks = UFOHDFS
 
-# Canal
+## Canal
 UFOAgent.channels.archivo.type = file
 UFOAgent.channels.archivo.checkpointDir = /opt/ufos/log/checkpoint/
 UFOAgent.channels.archivo.dataDirs = /opt/ufos/log/data/
 
-# Fuente e Interceptores
+## Fuente e Interceptores
 UFOAgent.sources.UFODir.type = spooldir
 UFOAgent.sources.UFODir.channels = archivo
 UFOAgent.sources.UFODir.spoolDir = /opt/ufos
 UFOAgent.sources.UFODir.fileHeader = true
 
-# Sumidero
+## Sumidero
 UFOAgent.sinks.UFOHDFS.type=hdfs
 UFOAgent.sinks.UFOHDFS.channel=archivo
 UFOAgent.sinks.UFOHDFS.hdfs.path = /user/itam/ufos_flume/
@@ -3352,24 +3352,24 @@ sudo ln -s ../../kite/lib/tika-* /usr/lib/flume-ng/lib
 </ul>
 
 <pre><code data-trim>
-# Componentes
+## Componentes
 UFOAgent.sources = UFODir
 UFOAgent.channels = archivo
 UFOAgent.sinks = UFOKiteDS
 
-# Canal
+## Canal
 UFOAgent.channels.archivo.type = file
 UFOAgent.channels.archivo.checkpointDir = /opt/ufos/log/checkpoint/
 UFOAgent.channels.archivo.dataDirs = /opt/ufos/log/data/
 
-# Fuente
+## Fuente
 UFOAgent.sources.UFODir.type = spooldir
 UFOAgent.sources.UFODir.channels = archivo
 UFOAgent.sources.UFODir.spoolDir = /opt/ufos
 UFOAgent.sources.UFODir.fileHeader = true
 UFOAgent.sources.UFODir.deletePolicy = immediate
 
-# Interceptor
+## Interceptor
 UFOAgent.sources.UFODir.interceptors = attach-schema morphline
 
 UFOAgent.sources.UFODir.interceptors.attach-schema.type = static
@@ -3381,10 +3381,10 @@ UFOAgent.sources.UFODir.interceptors.morphline.morphlineFile = /home/itam/ingest
 UFOAgent.sources.UFODir.interceptors.morphline.morphlineId = convertUFOFileToAvro
 
 
-# Sumidero
+## Sumidero
 UFOAgent.sinks.UFOKiteDS.type = org.apache.flume.sink.kite.DatasetSink
 UFOAgent.sinks.UFOKiteDS.channel = archivo
-UFOAgent.sinks.UFOKiteDS.kite.repo.uri = dataset:hive://0.0.0.0:9083/ufos
+UFOAgent.sinks.UFOKiteDS.kite.dataset.uri = dataset:hive://0.0.0.0:9083/ufos
 UFOAgent.sinks.UFOKiteDS.kite.dataset.name = ufos
 UFOAgent.sinks.UFOKiteDS.kite.batchSize = 10
 </code></pre>
