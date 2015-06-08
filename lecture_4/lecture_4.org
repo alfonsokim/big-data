@@ -2284,7 +2284,7 @@ UFOAgent.sources.UFODir.interceptors.morphline.morphlineId = convertUFOFileToAvr
 # Sumidero
 UFOAgent.sinks.UFOKiteDS.type = org.apache.flume.sink.kite.DatasetSink
 UFOAgent.sinks.UFOKiteDS.channel = archivo
-UFOAgent.sinks.UFOKiteDS.kite.repo.uri = dataset:hive://0.0.0.0:9083/ufos
+UFOAgent.sinks.UFOKiteDS.kite.dataset.uri = dataset:hive://0.0.0.0:9083/ufos
 UFOAgent.sinks.UFOKiteDS.kite.dataset.name = ufos
 UFOAgent.sinks.UFOKiteDS.kite.batchSize = 10
 </code></pre>
